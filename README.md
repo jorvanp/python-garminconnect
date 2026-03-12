@@ -67,6 +67,122 @@ Make your selection:
 [![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-blue.svg?style=for-the-badge&logo=paypal)](https://www.paypal.me/cyberjunkynl/)
 [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-GitHub-red.svg?style=for-the-badge&logo=github)](https://github.com/sponsors/cyberjunky)
 
+---
+
+## 🏃 Personal Fitness Dashboard (Custom Application)
+
+In addition to the API library, this fork includes a personal fitness dashboard that fetches Garmin data daily, runs an AI analysis, and serves a rich HTML report. Below is the architecture and how to deploy it.
+
+### Architecture Overview
+
+```
+Cloud Scheduler (cron 4am)
+        │
+        ▼
+Cloud Run (/refresh endpoint)
+        │
+        ├── export_data.py  → Garmin Connect API → training_data_monthly.json
+        │        └── Fetches 6 months of activities, sleep, HR, stress, body battery
+        │
+        ├── helpers.py      → Processes raw JSON into flat dashboard variables
+        │
+        ├── ai_advisor.py   → Gemini AI  → "Prescripción del Día" HTML block
+        │        └── Uses health metrics to generate coach-like recommendations
+        │
+        └── Google Cloud Storage  → Stores data JSON + auth tokens
+                │
+                ▼
+        app.py (Flask)  →  templates/fitness_report.html
+```
+
+### Key Custom Scripts
+
+| File | Role |
+|---|---|
+| `app.py` | Flask web server. Serves the dashboard at `/`, forces a Garmin data refresh at `/refresh` |
+| `export_data.py` | Garmin data extractor. Fetches up to 6 full months of activities, sleep, RHR, and stress |
+| `helpers.py` | Processes raw JSON into Jinja-ready variables (VO2 max, body battery, weekly km, progress bar %, etc.) |
+| `ai_advisor.py` | Calls Gemini (`gemini-2.5-flash`) with today's health metrics and generates an HTML "Prescripción del Día" block |
+| `analyze_training.py` | Standalone analyzer: reads the JSON files and produces a self-contained `fitness_report.html` with charts and plan compliance metrics |
+| `gcs_helper.py` | Wraps Google Cloud Storage for reading/writing JSON data and syncing Garmin auth tokens |
+| `deploy.sh` | One-shot GCP deployment script (Cloud Run + Cloud Storage bucket + Cloud Scheduler cron) |
+| `templates/fitness_report.html` | Jinja2 HTML template for the live Flask dashboard |
+
+### Dashboard Features
+
+- **Today's snapshot**: VO2 Max, resting HR, body battery, sleep score/hours, average stress
+- **Weekly running progress bar**: dynamically calculated km vs. 80 km peak week goal
+- **Recent activity feed**: last 15 activities with date, type, distance, duration, and pace
+- **RHR trend chart**: 6-month rolling average resting heart rate by month
+- **AI "Prescripción del Día"**: a Gemini-generated coach recommendation block that classifies the day as 🔴 Recovery / 🟡 Reduced intensity / 🟢 Full session based on sleep, body battery, and RHR
+
+### AI Recommendation (`ai_advisor.py`)
+
+The AI advisor sends today's biometrics plus the last 5 activity sessions to the Gemini API and receives a ready-to-embed HTML fragment including:
+
+- A colour-coded headline (red / yellow / green)
+- A short coaching paragraph
+- ⚠️ *Señales de atención* — alarming metrics
+- ✅ *Señales positivas* — green metrics
+
+The recommendation is cached in the JSON's `metadata.ai_recommendation` field and re-generated on every daily refresh.
+
+### Standalone HTML Report (`analyze_training.py`)
+
+Run this script locally to produce a static `fitness_report.html` that includes:
+
+- Heart-rate zone compliance per training session (per plan targets)
+- Pace compliance vs. marathon target (4:40 /km)
+- Session type classification (intervals / tempo / long / easy / strength)
+- 6-month trend charts (VO2, RHR, sleep score, weekly km, training load)
+- Monthly summary table
+- Static "daily prescription" (fatigue score based on BB, RHR delta, sleep score)
+- Personalized training recommendations (sleep, strength volume, altitude, training load)
+
+```bash
+python3 analyze_training.py
+# → opens fitness_report.html
+```
+
+### Cloud Deployment (`deploy.sh`)
+
+A single script creates and wires up the full GCP infrastructure:
+
+```bash
+export GEMINI_API_KEY="<your_key>"
+bash deploy.sh
+```
+
+What it does:
+
+1. **Cloud Storage** — creates `{PROJECT_ID}-garmin-data` bucket; uploads local Garmin tokens and existing JSON
+2. **Cloud Run** — builds and deploys the Flask app from source; injects `GARMIN_BUCKET`, `CRON_API_KEY`, and `GEMINI_API_KEY` env vars
+3. **Cloud Scheduler** — creates a cron job (`0 4 * * *` America/Costa_Rica) that hits `<SERVICE_URL>/refresh?apikey=<key>` every morning
+
+### Environment Variables
+
+| Variable | Where used | Description |
+|---|---|---|
+| `GARMIN_BUCKET` | `app.py`, `gcs_helper.py` | GCS bucket name for data & tokens |
+| `CRON_API_KEY` | `app.py`, `deploy.sh` | Simple API key to protect the `/refresh` endpoint |
+| `GEMINI_API_KEY` | `ai_advisor.py` | Google Gemini API key for AI recommendations |
+| `GARMINTOKENS` | `export_data.py` | Path to Garmin OAuth token directory (default `~/.garminconnect`) |
+
+### Local Development
+
+```bash
+# 1. Export data (first run, fetches 6 months — takes ~5 min)
+python3 export_data.py     # → training_data_monthly.json
+
+# 2. Start Flask dashboard
+FLASK_APP=app.py flask run
+
+# 3. (Optional) Generate standalone HTML report
+python3 analyze_training.py    # → fitness_report.html
+```
+
+---
+
 A comprehensive Python3 API wrapper for Garmin Connect, providing access to health, fitness, and device data.
 
 ## 📖 About
