@@ -1,0 +1,7 @@
+garminconnect
+Flask
+waitress
+google-cloud-storage
+gunicorn
+python-dotenv
+google-generativeai

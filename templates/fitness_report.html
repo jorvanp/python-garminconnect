@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis Físico — 12 de marzo de 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  h2 { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
+  h3 { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 10px; }
+  .section { background: #fff; border-radius: 14px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 10px #0001; }
+  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { background: #f8f9fa; font-weight: 600; text-align: left; padding: 10px 8px; color: #555; font-size: 13px; border-bottom: 2px solid #e0e0e0; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 28px 24px; border-radius: 14px; margin-bottom: 24px; }
+  .header h1 { font-size: 26px; font-weight: 800; }
+  .header p { opacity: 0.75; margin-top: 4px; font-size: 14px; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-box { background: #fff; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 8px #0001; }
+  .chart-wrap { position: relative; height: 160px; width: 100%; }
+  .tag { display: inline-block; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>📊 Análisis de Condición Física</h1>
+    <p>{{ user_profile.full_name | default("Jorvan") }} · {{ date_str }} · Altitud de entrenamiento: ~2,263m</p>
+  </div>
+
+  <!-- SNAPSHOT DE HOY -->
+  <div class="section">
+    <h2>🌅 Snapshot de Hoy</h2>
+    <div class="stat-row">
+      
+        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
+            <div style="font-size:22px;">🫀</div>
+            <div style="font-size:28px;font-weight:800;color:#eab308;">{{ vo2_max }}<span style="font-size:14px;font-weight:400;color:#999;"> ml/kg/min</span></div>
+            <div style="font-size:13px;color:#666;margin-top:2px;">VO2 Máx</div>
+            <div style="font-size:12px;color:#aaa;margin-top:2px;">Muy bueno</div>
+        </div>
+      
+        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
+            <div style="font-size:22px;">❤️</div>
+            <div style="font-size:28px;font-weight:800;color:#22c55e;">{{ rhr }}<span style="font-size:14px;font-weight:400;color:#999;"> bpm</span></div>
+            <div style="font-size:13px;color:#666;margin-top:2px;">FC en reposo</div>
+            <div style="font-size:12px;color:#aaa;margin-top:2px;">Promedio mensual: {{ chart_rhr[-1] if chart_rhr else '—' }}</div>
+        </div>
+      
+        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
+            <div style="font-size:22px;">🔋</div>
+            <div style="font-size:28px;font-weight:800;color:#ef4444;">{{ body_battery }}<span style="font-size:14px;font-weight:400;color:#999;"> %</span></div>
+            <div style="font-size:13px;color:#666;margin-top:2px;">Body Battery</div>
+            <div style="font-size:12px;color:#aaa;margin-top:2px;">Última medición</div>
+        </div>
+      
+        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
+            <div style="font-size:22px;">😴</div>
+            <div style="font-size:28px;font-weight:800;color:#eab308;">{{ sleep_hours }}<span style="font-size:14px;font-weight:400;color:#999;"> h</span></div>
+            <div style="font-size:13px;color:#666;margin-top:2px;">Sueño anoche</div>
+            <div style="font-size:12px;color:#aaa;margin-top:2px;">Score: {{ sleep_score }}</div>
+        </div>
+      
+        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
+            <div style="font-size:22px;">🧠</div>
+            <div style="font-size:28px;font-weight:800;color:#22c55e;">{{ stress_score }}<span style="font-size:14px;font-weight:400;color:#999;"> </span></div>
+            <div style="font-size:13px;color:#666;margin-top:2px;">Estrés promedio</div>
+            <div style="font-size:12px;color:#aaa;margin-top:2px;">0=bajo 100=alto</div>
+        </div>
+    </div>
+  </div>
+
+  <!-- PRESCRIPCIÓN DEL DÍA -->
+  
+  <div class="section" style="border-left:5px solid #ef4444;background:#fff1f2;">
+    <h2>📋 Prescripción del Día · Plan Maratón (objetivo 4:40 /km)</h2>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="flex:2;min-width:260px;">
+        {% if ai_recommendation %}
+            {{ ai_recommendation | safe }}
+        {% else %}
+            <div style="font-size:22px;font-weight:800;color:#ef4444;margin-bottom:6px;">🔴 Día de recuperación recomendado</div>
+            <div style="font-size:14px;color:#444;line-height:1.6;">Tus indicadores muestran fatiga acumulada significativa. Reemplaza cualquier sesión de calidad por trote muy suave (30 min <145 bpm), movilidad o descanso completo.</div>
+            <div style='margin-top:10px;'><span style='font-size:12px;font-weight:700;color:#ef4444;'>⚠️ Señales de fatiga:</span><ul style='margin:4px 0 0 16px;font-size:13px;color:#555;line-height:1.8;'><li>Body Battery actual ({{ body_battery }}%)</li><li>Calidad del sueño ({{ sleep_score }} pts)</li><li>Horas de sueño ({{ sleep_hours }}h)</li></ul></div><div style='margin-top:8px;'><span style='font-size:12px;font-weight:700;color:#22c55e;'>✅ Señales positivas:</span><ul style='margin:4px 0 0 16px;font-size:13px;color:#555;line-height:1.8;'><li>FC reposo ({{ rhr }} bpm)</li></ul></div>
+        {% endif %}
+      </div>
+      <div style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 4px #0001;">
+        <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;">OBJETIVOS DEL PLAN</div>
+        <div style="font-size:13px;color:#444;line-height:2;">
+          🎯 Ritmo maratón: <strong>4:40 /km</strong><br>
+          🟢 Trote suave:    <strong>&lt;160 bpm</strong><br>
+          🟡 Fondo largo:    <strong>160–170 bpm</strong><br>
+          🔴 Intervalos:     <strong>≥170 bpm</strong><br>
+          📏 Pico semanal:   <strong>80–90 km</strong>
+        </div>
+      </div>
+    </div>
+    
+        <div style="margin-top:14px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:4px;">
+            <span>0 km</span>
+            <span>60 km (base)</span>
+            <span>80 km (pico)</span>
+            <span>90 km (máx)</span>
+          </div>
+          <div style="position:relative;height:18px;background:#e5e7eb;border-radius:9px;overflow:hidden;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:{{ weekly_progress_pct }}%;background:#eab308;border-radius:9px;transition:width 0.3s;"></div>
+            <div style="position:absolute;left:66.7%;top:0;height:100%;width:2px;background:#6b7280;opacity:0.5;"></div>
+            <div style="position:absolute;left:88.9%;top:0;height:100%;width:2px;background:#6b7280;opacity:0.5;"></div>
+          </div>
+          <div style="font-size:13px;color:#555;margin-top:6px;"><strong>{{ total_run_distance }} km</strong> acumulados esta semana. Faltan ~{{ weekly_remaining }} km para una semana pico de 80 km.</div>
+        </div>
+  </div>
+
+  <!-- SUEÑO DETALLE -->
+  <div class="section">
+    <h2>😴 Calidad de Sueño — Anoche</h2>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="flex:2;min-width:260px;">
+        <p style="font-size:14px;color:#555;margin-bottom:12px;">
+          Dormiste <strong>{{ sleep_hours }}h</strong> con un puntaje de <strong style="color:#ef4444;">{{ sleep_score }}</strong>.
+        </p>
+        
+    <div style="display:flex;border-radius:8px;overflow:hidden;height:20px;width:100%;margin:10px 0;">
+        <div style="width:{{ deep_perc | default(20) }}%;background:#6366f1;title='Sueño profundo'"></div>
+        <div style="width:{{ rem_perc | default(25) }}%;background:#8b5cf6;"></div>
+        <div style="width:{{ light_perc | default(50) }}%;background:#a78bfa;"></div>
+        <div style="width:{{ awake_perc | default(5) }}%;background:#e5e7eb;"></div>
+    </div>
+    <div style="display:flex;gap:16px;font-size:12px;color:#666;flex-wrap:wrap;">
+        <span>🟦 Profundo {{ deep_perc | default(20) }}%</span>
+        <span>🟪 REM {{ rem_perc | default(25) }}%</span>
+        <span>💜 Ligero {{ light_perc | default(50) }}%</span>
+        <span>⬜ Despierto {{ awake_perc | default(5) }}%</span>
+    </div>
+      </div>
+      <div style="flex:1;min-width:200px;background:#f8f9fa;border-radius:10px;padding:16px;">
+        <h3>Óptimo adulto activo</h3>
+        <ul style="font-size:13px;color:#555;padding-left:16px;line-height:2;">
+          <li>Profundo: 16–33%</li>
+          <li>REM: 21–31%</li>
+          <li>Total: 7.5–8.5h</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVIDADES ESTA SEMANA -->
+  <div class="section">
+    <h2>🏃 Actividades — Últimos 7 Días</h2>
+    <div class="stat-row" style="margin-bottom:20px;">
+      <div style="background:#f0fdf4;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
+        <div style="font-size:24px;font-weight:800;color:#22c55e;">{{ runs_count }}</div>
+        <div style="font-size:13px;color:#666;">Carreras</div>
+      </div>
+      <div style="background:#fff7ed;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
+        <div style="font-size:24px;font-weight:800;color:#f97316;">{{ strength_count }}</div>
+        <div style="font-size:13px;color:#666;">Sesiones de fuerza</div>
+      </div>
+      <div style="background:#eff6ff;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
+        <div style="font-size:24px;font-weight:800;color:#3b82f6;">{{ total_run_distance }}</div>
+        <div style="font-size:13px;color:#666;">km totales carrera</div>
+      </div>
+      <div style="background:#fdf4ff;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
+        <div style="font-size:24px;font-weight:800;color:#a855f7;">—</div>
+        <div style="font-size:13px;color:#666;">Carga total</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr>
+        <th>Fecha</th><th>Tipo</th><th>Distancia</th><th>Duración</th>
+        <th>FC media/máx</th><th>Ritmo</th><th>Carga</th><th>Efecto A/An</th>
+      </tr></thead>
+      <tbody>
+        {% for act in recent_activities %}
+        <tr>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">{{ act._date }}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">
+                <div style="font-weight:600;">🏃 {{ act.activityName }}</div>
+                <div style="font-size:11px;color:#999;">{{ act.activityType.typeKey }}</div>
+            </td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">{{ act._dist_km }} km</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">{{ act._dur_min }} min</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">
+                <span style="font-weight:600;">{{ act.averageHR | default('—') }}</span> / {{ act.maxHR | default('—') }} bpm<br>
+            </td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">
+                <span style="color:#888;font-weight:600;">{{ act._pace }}</span>
+            </td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;font-weight:700;color:#ef4444;">—</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">—</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- RECOMENDACIONES -->
+  <div class="section">
+    <h2>🎯 Recomendaciones Personalizadas</h2>
+    
+        <div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:8px;padding:14px 18px;margin-bottom:12px;">
+            <div style="font-size:18px;font-weight:700;color:#22c55e;">📈 VO2 Máx en ascenso</div>
+            <div style="font-size:12px;color:#888;margin-bottom:4px;">VO2 Máx</div>
+            <div style="font-size:14px;color:#444;line-height:1.5;">Tu VO2 máx subió a 49 ml/kg/min (Muy bueno). El entrenamiento por intervalos está funcionando. Continúa incorporando sesiones de alta intensidad 1-2 veces/semana.</div>
+        </div>
+        <div style="background:#fff7ed;border-left:4px solid #f97316;border-radius:8px;padding:14px 18px;margin-bottom:12px;">
+            <div style="font-size:18px;font-weight:700;color:#f97316;">😴 Seguimiento de Sueño ({{ sleep_hours }}h)</div>
+            <div style="font-size:12px;color:#888;margin-bottom:4px;">Sueño</div>
+            <div style="font-size:14px;color:#444;line-height:1.5;">Menos de 7h de sueño impacta negativamente en la recuperación muscular, la hormona de crecimiento y el rendimiento. Prioriza acostarte más temprano.</div>
+        </div>
+        <div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:8px;padding:14px 18px;margin-bottom:12px;">
+            <div style="font-size:18px;font-weight:700;color:#22c55e;">🏃 Buen volumen semanal de carrera (24.4 km)</div>
+            <div style="font-size:12px;color:#888;margin-bottom:4px;">Volumen</div>
+            <div style="font-size:14px;color:#444;line-height:1.5;">Mantén consistencia. Si tu objetivo es aumentar volumen, no superes el 10% semanal para evitar lesiones por sobreuso.</div>
+        </div>
+  </div>
+
+  <!-- TENDENCIAS HISTÓRICAS (charts) -->
+  <div class="section">
+    <h2>📈 Tendencias Históricas (6 meses)</h2>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h3>VO2 Máx</h3>
+        <div class="chart-wrap"><canvas id="chartVo2"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>FC en Reposo</h3>
+        <div class="chart-wrap"><canvas id="chartRhr"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Kilómetros de Carrera / Mes</h3>
+        <div class="chart-wrap"><canvas id="chartKm"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Carga de Entrenamiento / Mes</h3>
+        <div class="chart-wrap"><canvas id="chartLoad"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Puntaje de Sueño Promedio</h3>
+        <div class="chart-wrap"><canvas id="chartSleep"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Sesiones de Fuerza / Mes</h3>
+        <div class="chart-wrap"><canvas id="chartStrength"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA MENSUAL -->
+  <div class="section">
+    <h2>📅 Resumen Mensual</h2>
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr>
+        <th>Mes</th><th>Carreras</th><th>Km</th><th>Fuerza</th>
+        <th>Carga total</th><th>VO2 Máx</th><th>FC reposo</th><th>Sueño</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-weight:600;">2025-09</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">19</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">141.7 km</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">7</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">2651</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">47.6</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#22c55e;font-weight:700;">49</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">76</td>
+        </tr>
+        <tr>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-weight:600;">2025-10</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">21</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">186.4 km</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">10</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">3761</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">47.5</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#22c55e;font-weight:700;">50</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">75</td>
+        </tr>
+        <tr>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-weight:600;">2025-11</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">23</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">208.8 km</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">6</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">3236</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">47.8</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#22c55e;font-weight:700;">49</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">75</td>
+        </tr>
+        <tr>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-weight:600;">2025-12</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">23</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">215.0 km</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">7</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">3478</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">47.7</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#22c55e;font-weight:700;">49</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">77</td>
+        </tr>
+        <tr>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-weight:600;">2026-01</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">21</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">239.5 km</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">5</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">3313</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">47.4</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#22c55e;font-weight:700;">49</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">77</td>
+        </tr>
+        <tr>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-weight:600;">2026-02</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">16</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">174.2 km</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">2</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">2591</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">49.3</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#22c55e;font-weight:700;">46</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">77</td>
+        </tr>
+        <tr>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-weight:600;">2026-03</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">5</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">67.3 km</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">2</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;">813</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#22c55e;font-weight:700;">50.7</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#22c55e;font-weight:700;">45</td>
+            <td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;color:#eab308;font-weight:700;">72</td>
+        </tr></tbody>
+    </table>
+    </div>
+  </div>
+
+  <p style="text-align:center;color:#bbb;font-size:12px;padding:12px 0;">
+    Generado automáticamente · Datos de Garmin Connect · 2026-03-12
+  </p>
+</div>
+
+<script>
+const chartMonths = {{ chart_months | tojson }};
+const baseOpts = {
+  responsive:true,
+  maintainAspectRatio:false,
+  plugins:{legend:{display:false}},
+  scales:{
+    x:{grid:{display:false}, ticks:{font:{size:11}}},
+    y:{grid:{color:'#f0f0f0'}, ticks:{font:{size:11}}}
+  }
+};
+
+new Chart(document.getElementById('chartVo2'), {
+  type:'line', data:{
+    labels:chartMonths,
+    datasets:[{data:[47.6,47.5,47.8,47.7,47.4,49.3,50.7], borderColor:'#6366f1', backgroundColor:'#6366f120', fill:true, tension:0.4, pointRadius:5}]
+  }, options:{...baseOpts, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, min:44, max:55}}}
+});
+
+new Chart(document.getElementById('chartRhr'), {
+  type:'line', data:{
+    labels:chartMonths,
+    datasets:[{data:{{ chart_rhr | tojson }}, borderColor:'#ef4444', backgroundColor:'#ef444420', fill:true, tension:0.4, pointRadius:5}]
+  }, options:baseOpts
+});
+
+new Chart(document.getElementById('chartKm'), {
+  type:'bar', data:{
+    labels:chartMonths,
+    datasets:[{data:[141.7,186.4,208.8,215.0,239.5,174.2,67.3], backgroundColor:'#3b82f680', borderColor:'#3b82f6', borderRadius:6}]
+  }, options:baseOpts
+});
+
+new Chart(document.getElementById('chartLoad'), {
+  type:'bar', data:{
+    labels:chartMonths,
+    datasets:[{data:[2651,3761,3236,3478,3313,2591,813], backgroundColor:'#f9731680', borderColor:'#f97316', borderRadius:6}]
+  }, options:baseOpts
+});
+
+new Chart(document.getElementById('chartSleep'), {
+  type:'line', data:{
+    labels:chartMonths,
+    datasets:[{data:[76,75,75,77,77,77,72], borderColor:'#8b5cf6', backgroundColor:'#8b5cf620', fill:true, tension:0.4, pointRadius:5}]
+  }, options:{...baseOpts, scales:{...baseOpts.scales, y:{...baseOpts.scales.y, min:60, max:90}}}
+});
+
+new Chart(document.getElementById('chartStrength'), {
+  type:'bar', data:{
+    labels:chartMonths,
+    datasets:[{data:[7,10,6,7,5,2,2], backgroundColor:'#22c55e80', borderColor:'#22c55e', borderRadius:6}]
+  }, options:baseOpts
+});
+</script>
+</body>
+</html>
