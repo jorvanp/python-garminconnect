@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan de entrenamiento — Sento Run</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
+
+  .navbar { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .navbar-brand { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .navbar-links { display: flex; gap: 16px; align-items: center; }
+  .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; transition: color 0.15s; }
+  .navbar-links a:hover { color: white; }
+  .breadcrumb { font-size: 12px; color: rgba(255,255,255,0.5); }
+  .breadcrumb a { color: rgba(255,255,255,0.65); text-decoration: none; }
+
+  .disclaimer-top { background: #fffbeb; border-bottom: 1px solid #fde68a; padding: 10px 24px; font-size: 12px; color: #78350f; display: flex; align-items: center; gap: 8px; }
+
+  .content { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  /* Plan header */
+  .plan-header { background: white; border-radius: 16px; padding: 22px 26px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .plan-title { font-size: 22px; font-weight: 800; color: #1a1a2e; margin-bottom: 12px; }
+  .plan-meta { display: flex; flex-wrap: wrap; gap: 10px; }
+  .meta-chip { background: #f4f6f9; border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; color: #444; }
+
+  /* Phases */
+  .phases-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .phase-chip { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .phase-chip:nth-child(1) { background: #dbeafe; color: #1e40af; }
+  .phase-chip:nth-child(2) { background: #fed7aa; color: #9a3412; }
+  .phase-chip:nth-child(3) { background: #d1fae5; color: #065f46; }
+  .phase-chip:nth-child(4) { background: #ede9fe; color: #5b21b6; }
+  .phase-chip:nth-child(n+5) { background: #f3f4f6; color: #374151; }
+
+  /* Week cards */
+  .week-card { background: white; border-radius: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; border: 2px solid transparent; transition: border-color 0.2s; }
+  .week-card.current { border-color: #22c55e; box-shadow: 0 2px 14px rgba(34,197,94,0.15); }
+  .week-card.past { opacity: 0.6; }
+
+  .week-header { padding: 13px 18px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+  .week-header:hover { background: #f9fafb; }
+  .week-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .week-number-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .week-number { font-size: 13px; font-weight: 800; color: #1a1a2e; white-space: nowrap; }
+  .week-daterange { font-size: 12px; font-weight: 500; color: #6b7280; white-space: nowrap; }
+  .week-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #dcfce7; color: #166534; }
+  .week-phase { font-size: 12px; color: #6b7280; }
+  .week-focus { font-size: 12px; color: #9ca3af; font-style: italic; }
+  .week-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .week-km { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+  .week-toggle { font-size: 14px; color: #9ca3af; transition: transform 0.2s; }
+  .week-card.open .week-toggle { transform: rotate(180deg); }
+
+  .week-body { display: none; padding: 0 18px 16px; }
+  .week-card.open .week-body { display: block; }
+
+  /* Workouts grid */
+  .workouts-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  @media (max-width: 720px) { .workouts-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (max-width: 480px) { .workouts-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .workout-cell { border-radius: 10px; padding: 8px 6px; text-align: center; }
+  .workout-day-name { font-weight: 700; color: #6b7280; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .workout-icon { font-size: 18px; margin-bottom: 3px; }
+  .workout-label { font-weight: 700; font-size: 11px; margin-bottom: 3px; }
+  .workout-km { font-size: 11px; font-weight: 600; margin-bottom: 3px; opacity: 0.8; }
+  .workout-desc { font-size: 10px; color: #6b7280; line-height: 1.35; }
+
+  .type-rest    { background: #f3f4f6; }
+  .type-rest    .workout-label { color: #6b7280; }
+  .type-easy    { background: #dbeafe; }
+  .type-easy    .workout-label { color: #1d4ed8; }
+  .type-tempo   { background: #fed7aa; }
+  .type-tempo   .workout-label { color: #c2410c; }
+  .type-intervals { background: #fecaca; }
+  .type-intervals .workout-label { color: #dc2626; }
+  .type-long    { background: #d1fae5; }
+  .type-long    .workout-label { color: #065f46; }
+  .type-cross   { background: #ede9fe; }
+  .type-cross   .workout-label { color: #6d28d9; }
+  .type-race    { background: #fef9c3; }
+  .type-race    .workout-label { color: #854d0e; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  /* Bottom actions */
+  .actions-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+  .btn-action { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: opacity 0.15s; }
+  .btn-action:hover { opacity: 0.85; }
+  .btn-regen { background: #f4f6f9; border: 1px solid #d1d5db; color: #374151; }
+  .btn-regen:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-dashboard { background: #1a1a2e; color: white; }
+
+  .disclaimer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-top: 20px; font-size: 12px; color: #64748b; line-height: 1.65; }
+
+  /* Generated date */
+  .generated-note { font-size: 11px; color: #aaa; text-align: right; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">🏃 Sento Run</div>
+  <div class="breadcrumb"><a href="/">Dashboard</a> › Plan de entrenamiento</div>
+  <div class="navbar-links">
+    <a href="/goal/setup">⚙️ Reconfigurar</a>
+    <a href="/">← Dashboard</a>
+  </div>
+</nav>
+
+<div class="disclaimer-top">
+  ⚠️ <strong>Recomendación orientativa:</strong> Este plan fue generado por inteligencia artificial. Escucha a tu cuerpo y consulta con un profesional ante cualquier molestia.
+</div>
+
+{% if generating %}
+<!-- Generating state — polls until ready -->
+<div class="content" style="text-align:center;padding-top:80px;">
+  <div style="font-size:48px;margin-bottom:20px;">🏃</div>
+  <div style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:10px;">Generando tu plan de entrenamiento</div>
+  <div style="font-size:14px;color:#6b7280;margin-bottom:32px;">Esto puede tomar unos segundos. No cierres esta página.</div>
+  <div style="display:inline-block;width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:#1a1a2e;border-radius:50%;animation:spin 0.9s linear infinite;margin-bottom:24px;"></div>
+  <div id="genStatus" style="font-size:13px;color:#9ca3af;margin-top:8px;"></div>
+</div>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+<script>
+  (function poll() {
+    fetch('/plan/status').then(r => r.json()).then(data => {
+      if (data.ready) {
+        window.location.reload();
+      } else if (data.error) {
+        document.querySelector('.content div:nth-child(2)').textContent = '❌ ' + data.error;
+        document.querySelector('.content div:nth-child(4)').style.display = 'none';
+      } else {
+        setTimeout(poll, 2500);
+      }
+    }).catch(() => setTimeout(poll, 3000));
+  })();
+</script>
+
+{% else %}
+
+<div class="content">
+
+  <!-- Plan header -->
+  <div class="plan-header">
+    <div class="plan-title">{{ plan.title }}</div>
+    <div class="plan-meta">
+      {% if plan.plan_start_date %}<span class="meta-chip">📅 Inicio: {{ plan.plan_start_date }}</span>{% endif %}
+      {% if plan.event_date %}<span class="meta-chip">🏁 Evento: {{ plan.event_date }}</span>{% endif %}
+      {% if plan.goal_pace %}<span class="meta-chip">⏱ Ritmo meta: {{ plan.goal_pace }}</span>{% endif %}
+      {% if plan.weekly_peak_km %}<span class="meta-chip">📊 Pico: {{ plan.weekly_peak_km }} km/sem</span>{% endif %}
+      {% if plan.total_weeks %}<span class="meta-chip">🗓 {{ plan.total_weeks }} semanas</span>{% endif %}
+    </div>
+    {% if plan.generated_at %}
+    <div class="generated-note">Generado el {{ plan.generated_at }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Phases -->
+  {% if plan.phases %}
+  <div class="phases-bar">
+    {% for phase in plan.phases %}
+    <div class="phase-chip">{{ phase.name }} · sem. {{ phase.start_week }}–{{ phase.end_week }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#f3f4f6;border:1px solid #d1d5db"></div> Descanso</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#dbeafe"></div> Rodaje suave</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d1fae5"></div> Rodaje largo</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fed7aa"></div> Tempo</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fecaca"></div> Intervalos</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ede9fe"></div> Cross / Fuerza</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fef9c3"></div> Carrera / Evento</div>
+  </div>
+
+  {% set workout_icons = {'rest': '😴', 'easy': '🏃', 'tempo': '⚡', 'intervals': '🔥', 'long': '🌿', 'cross': '💪', 'race': '🏁'} %}
+
+  <!-- Weeks -->
+  {% for week in plan.weeks %}
+  {% set is_current = (current_week is not none and week.week_number == current_week) %}
+  {% set is_past = (current_week is not none and week.week_number < current_week) %}
+  <div class="week-card{% if is_current %} current open{% elif not is_past %} open{% endif %}{% if is_past %} past{% endif %}" id="week-{{ week.week_number }}">
+    <div class="week-header" onclick="toggleWeek({{ week.week_number }})">
+      <div class="week-left">
+        <div class="week-number-row">
+          <div class="week-number">Semana {{ week.week_number }}</div>
+          {% if week.week_number in week_dates %}
+          <div class="week-daterange">{{ week_dates[week.week_number].start }} – {{ week_dates[week.week_number].end }}</div>
+          {% endif %}
+          {% if is_current %}<span class="week-badge">← Esta semana</span>{% endif %}
+        </div>
+        <div class="week-phase">{{ week.phase }}</div>
+        <div class="week-focus">{{ week.focus }}</div>
+      </div>
+      <div class="week-right">
+        <div class="week-km">{{ week.total_km }} km</div>
+        <div class="week-toggle">▾</div>
+      </div>
+    </div>
+    <div class="week-body">
+      <div class="workouts-grid">
+        {% for w in week.workouts %}
+        <div class="workout-cell type-{{ w.type }}">
+          <div class="workout-day-name">{{ w.day_name[:3] if w.day_name else '' }}</div>
+          <div class="workout-icon">{{ workout_icons.get(w.type, '🏃') }}</div>
+          <div class="workout-label">{{ w.label }}</div>
+          {% if w.km and w.km > 0 %}<div class="workout-km">{{ w.km }} km</div>{% endif %}
+          {% if w.zone %}<div class="workout-km" style="color:#6b7280">{{ w.zone }}</div>{% endif %}
+          <div class="workout-desc">{{ w.description }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Actions -->
+  <div class="actions-row">
+    <button class="btn-action btn-regen" id="regenBtn" onclick="regeneratePlan()">🔄 Regenerar plan</button>
+    <a href="/" class="btn-action btn-dashboard">← Volver al dashboard</a>
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer-box">
+    {{ plan.disclaimer }}
+  </div>
+
+</div><!-- end content -->
+{% endif %}<!-- end else generating -->
+
+<script>
+  function toggleWeek(n) {
+    const card = document.getElementById('week-' + n);
+    card.classList.toggle('open');
+  }
+
+  async function regeneratePlan() {
+    const btn = document.getElementById('regenBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Iniciando regeneración…';
+    try {
+      const resp = await fetch('/goal/generate-plan', { method: 'POST' });
+      const data = await resp.json();
+      if (resp.status === 429 || data.limit_reached) {
+        btn.textContent = '⚠️ ' + data.error;
+        btn.disabled = false;
+        return;
+      }
+      btn.textContent = '⏳ Generando… recargando en breve';
+      (function poll() {
+        fetch('/plan/status').then(r => r.json()).then(d => {
+          if (d.ready && !d.generating) {
+            window.location.reload();
+          } else if (d.error) {
+            btn.textContent = '❌ ' + d.error;
+            btn.disabled = false;
+          } else {
+            setTimeout(poll, 2500);
+          }
+        }).catch(() => setTimeout(poll, 3000));
+      })();
+    } catch (err) {
+      btn.textContent = '❌ Error de conexión';
+      btn.disabled = false;
+    }
+  }
+
+  // Scroll to current week on load
+  window.addEventListener('DOMContentLoaded', () => {
+    {% if current_week %}
+    const el = document.getElementById('week-{{ current_week }}');
+    if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+    {% endif %}
+  });
+</script>
+</body>
+</html>

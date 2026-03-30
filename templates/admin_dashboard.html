@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Garmin Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
+  .navbar { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar-brand { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+  .navbar-badge { background: #ef4444; color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .navbar-links { display: flex; gap: 16px; align-items: center; font-size: 14px; }
+  .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; transition: color 0.2s; }
+  .navbar-links a:hover { color: white; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 28px 16px; }
+  h1 { font-size: 24px; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 24px; }
+  .stats-row { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  .stat-card { background: white; border-radius: 12px; padding: 18px 22px; flex: 1; min-width: 140px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .stat-card .value { font-size: 32px; font-weight: 800; color: #1a1a2e; }
+  .stat-card .label { font-size: 13px; color: #888; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  th { background: #f8f9fa; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; padding: 12px 16px; text-align: left; border-bottom: 2px solid #e0e0e0; }
+  td { padding: 13px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbff; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+  .avatar-placeholder { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#6366f1,#8b5cf6); display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 13px; font-weight: 700; }
+  .badge { display: inline-block; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-gray { background: #f3f4f6; color: #6b7280; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .btn-sm { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: all 0.2s; }
+  .btn-view { background: #e8f0fe; color: #1a73e8; }
+  .btn-view:hover { background: #d2e3fc; }
+  .btn-refresh { background: #fef9c3; color: #854d0e; }
+  .btn-refresh:hover { background: #fef08a; }
+  .btn-full { background: #f3e8ff; color: #6b21a8; }
+  .btn-full:hover { background: #e9d5ff; }
+  .btn-reconnect { background: #fee2e2; color: #991b1b; }
+  .btn-reconnect:hover { background: #fecaca; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  /* Progress modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 300; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: #fff; border-radius: 16px; padding: 28px 26px; max-width: 440px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+  .modal-title { font-size: 17px; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+  .modal-sub { font-size: 13px; color: #666; margin-bottom: 20px; }
+  .progress-track { background: #e5e7eb; border-radius: 8px; height: 12px; overflow: hidden; margin-bottom: 8px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #6b21a8, #a855f7); border-radius: 8px; transition: width 0.5s ease; }
+  .progress-row { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 6px; }
+  .modal-msg { font-size: 13px; color: #555; min-height: 18px; }
+  .modal-close { display: block; width: 100%; margin-top: 20px; padding: 10px; border: none; border-radius: 10px; background: #f3f4f6; color: #444; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .modal-close:hover { background: #e5e7eb; }
+  .empty { text-align: center; padding: 48px; color: #aaa; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">
+    🏃 Sento Run
+    <span class="navbar-badge">ADMIN</span>
+  </div>
+  <div class="navbar-links">
+    <a href="/admin/weekly-summaries">📊 Semanas</a>
+    <a href="/admin/feedback">💬 Feedback</a>
+    <a href="/admin/coaching-rules">🧠 Reglas IA</a>
+    <a href="/">Mi dashboard</a>
+    <a href="/auth/logout">Cerrar sesión</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>Panel de Administración</h1>
+  <p class="subtitle">Gestión de usuarios registrados en Garmin Dashboard</p>
+
+  {% set total = users | length %}
+  {% set connected = users | selectattr('garmin_connected', 'equalto', true) | list | length %}
+  {% set admins = users | selectattr('is_admin', 'equalto', true) | list | length %}
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="value">{{ total }}</div>
+      <div class="label">Usuarios totales</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">{{ connected }}</div>
+      <div class="label">Con Garmin conectado</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">{{ total - connected }}</div>
+      <div class="label">Pendientes de configurar</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">{{ admins }}</div>
+      <div class="label">Administradores</div>
+    </div>
+  </div>
+
+  {% if users %}
+  <table>
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th>Email</th>
+        <th>Estado Garmin</th>
+        <th>Último acceso</th>
+        <th>Última actualización</th>
+        <th>Rol</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users | sort(attribute='email') %}
+      <tr id="row-{{ u.uid }}">
+        <td style="display:flex;align-items:center;gap:10px;">
+          {% if u.picture_url %}
+            <img src="{{ u.picture_url }}" alt="" class="avatar">
+          {% else %}
+            <span class="avatar-placeholder">{{ (u.display_name or u.email or '?')[0].upper() }}</span>
+          {% endif %}
+          <span style="font-weight:600;">{{ u.display_name or '—' }}</span>
+        </td>
+        <td>{{ u.email or '—' }}</td>
+        <td>
+          {% if u.garmin_connected %}
+            <span class="badge badge-green">✓ Conectado</span>
+          {% else %}
+            <span class="badge badge-gray">Sin conectar</span>
+          {% endif %}
+        </td>
+        <td style="font-size:13px;color:#555;">
+          {% if u.last_login %}
+            {{ u.last_login | ts_cdmx }}
+          {% else %}
+            <span style="color:#bbb;">—</span>
+          {% endif %}
+        </td>
+        <td style="font-size:13px;color:#555;">
+          {% if u.last_refresh %}
+            {{ u.last_refresh | ts_cdmx }}
+          {% else %}
+            <span style="color:#bbb;">Nunca</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if u.is_admin %}
+            <span class="badge badge-blue">Admin</span>
+          {% else %}
+            <span class="badge badge-gray">Usuario</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="actions" id="actions-{{ u.uid }}">
+            {% if u.garmin_connected %}
+            <a href="/admin/user/{{ u.uid }}" class="btn-sm btn-view">👁 Ver</a>
+            <button class="btn-sm btn-refresh" id="btn-day-{{ u.uid }}" onclick="refreshDay('{{ u.uid }}', this)" title="Recarga incremental del mes actual">🔄 Día</button>
+            <button class="btn-sm btn-full" id="btn-full-{{ u.uid }}" onclick="refreshFull('{{ u.uid }}', '{{ u.display_name or u.email }}')" title="Re-descarga completa de los últimos 6 meses">📦 Completo</button>
+            {% endif %}
+            <button class="btn-sm btn-reconnect" onclick="requestReconnect('{{ u.uid }}', '{{ u.display_name or u.email }}')" title="Pide al usuario que vuelva a conectar su cuenta Garmin">🔌 Reconectar</button>
+            <button class="btn-sm {% if u.garmin_sync_disabled %}btn-full{% else %}btn-reconnect{% endif %}"
+              id="btn-sync-{{ u.uid }}"
+              onclick="toggleGarminSync('{{ u.uid }}', {{ 'true' if u.garmin_sync_disabled else 'false' }})"
+              title="Activa o desactiva la sincronización con Garmin para este usuario">
+              {% if u.garmin_sync_disabled %}✅ Activar sync{% else %}⏸ Pausar sync{% endif %}
+            </button>
+          </div>
+          <div id="progress-{{ u.uid }}" style="display:none;margin-top:6px;">
+            <div style="background:#e5e7eb;border-radius:6px;height:8px;overflow:hidden;width:160px;">
+              <div id="pbar-{{ u.uid }}" style="height:100%;background:linear-gradient(90deg,#6b21a8,#a855f7);border-radius:6px;width:0%;transition:width 0.4s;"></div>
+            </div>
+            <div id="pmsg-{{ u.uid }}" style="font-size:11px;color:#666;margin-top:3px;"></div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No hay usuarios registrados aún.</div>
+  {% endif %}
+</div>
+
+<!-- Full refresh progress modal -->
+<div class="modal-overlay" id="fullRefreshModal">
+  <div class="modal-box">
+    <div class="modal-title">📦 Recarga completa en progreso</div>
+    <div class="modal-sub" id="modalUserName"></div>
+    <div class="progress-row">
+      <span id="modalMsg">Iniciando...</span>
+      <span id="modalPct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="modalBar" style="width:0%"></div>
+    </div>
+    <div class="modal-msg" style="margin-top:8px;font-size:12px;color:#aaa;">🔒 La descarga continúa en segundo plano aunque cierres este panel.</div>
+    <button class="modal-close" onclick="closeModal()">Cerrar panel (la descarga sigue en segundo plano)</button>
+  </div>
+</div>
+
+<script>
+// ---- Helpers de progreso por fila ----
+function showRowProgress(uid, pct, msg) {
+  const div = document.getElementById('progress-' + uid);
+  const bar = document.getElementById('pbar-' + uid);
+  const msgEl = document.getElementById('pmsg-' + uid);
+  if (!div) return;
+  div.style.display = 'block';
+  const p = Math.max(0, Math.min(100, pct));
+  bar.style.width = p + '%';
+  bar.style.background = pct === -1 ? '#ef4444' : (pct === 100 ? '#22c55e' : 'linear-gradient(90deg,#6b21a8,#a855f7)');
+  msgEl.textContent = msg || '';
+}
+
+function hideRowProgress(uid) {
+  const div = document.getElementById('progress-' + uid);
+  if (div) div.style.display = 'none';
+}
+
+function lockRowButtons(uid) {
+  ['btn-day-' + uid, 'btn-full-' + uid].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.disabled = true; b.style.opacity = '0.4'; }
+  });
+}
+
+function unlockRowButtons(uid) {
+  ['btn-day-' + uid, 'btn-full-' + uid].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.disabled = false; b.style.opacity = ''; }
+  });
+}
+
+// ---- Polling global de todos los usuarios en recarga ----
+let _globalPoll = null;
+
+function startGlobalPoll() {
+  if (_globalPoll) return;
+  _globalPoll = setInterval(pollAllStatus, 4000);
+}
+
+function stopGlobalPollIfIdle() {
+  fetch('/admin/refresh/status-all')
+    .then(r => r.json())
+    .then(data => {
+      if (Object.keys(data).length === 0 && _globalPoll) {
+        clearInterval(_globalPoll);
+        _globalPoll = null;
+      }
+    }).catch(() => {});
+}
+
+function pollAllStatus() {
+  fetch('/admin/refresh/status-all')
+    .then(r => r.json())
+    .then(data => {
+      if (Object.keys(data).length === 0) {
+        clearInterval(_globalPoll);
+        _globalPoll = null;
+        return;
+      }
+      for (const [uid, prog] of Object.entries(data)) {
+        showRowProgress(uid, prog.pct, prog.msg);
+        lockRowButtons(uid);
+        if (prog.pct === 100 || prog.pct === -1) {
+          setTimeout(() => { hideRowProgress(uid); unlockRowButtons(uid); }, 3000);
+        }
+      }
+    }).catch(() => {});
+}
+
+// Al cargar, verificar si hay recargas en curso
+window.addEventListener('DOMContentLoaded', () => {
+  fetch('/admin/refresh/status-all')
+    .then(r => r.json())
+    .then(data => {
+      for (const [uid, prog] of Object.entries(data)) {
+        showRowProgress(uid, prog.pct, prog.msg);
+        lockRowButtons(uid);
+      }
+      if (Object.keys(data).length > 0) startGlobalPoll();
+    }).catch(() => {});
+});
+
+// ---- Recarga incremental (día) ----
+function refreshDay(uid, btn) {
+  if (!confirm('¿Recarga del día (mes actual) para este usuario?')) return;
+  lockRowButtons(uid);
+  showRowProgress(uid, 5, 'Iniciando recarga...');
+  startGlobalPoll();
+  fetch('/admin/user/' + uid + '/refresh', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        showRowProgress(uid, 100, '✓ Listo');
+        setTimeout(() => { hideRowProgress(uid); unlockRowButtons(uid); }, 3000);
+      } else {
+        showRowProgress(uid, -1, '❌ ' + (data.error || 'Error'));
+        setTimeout(() => { hideRowProgress(uid); unlockRowButtons(uid); }, 4000);
+      }
+    })
+    .catch(() => { showRowProgress(uid, -1, '❌ Error de conexión'); setTimeout(() => { hideRowProgress(uid); unlockRowButtons(uid); }, 4000); });
+}
+
+// ---- Recarga completa (6 meses) ----
+let _pollInterval = null;
+let _fullUid = null;
+
+function refreshFull(uid, userName) {
+  if (!confirm('¿Re-descargar los últimos 6 meses para ' + userName + '?\nEsto puede tardar 3–8 minutos.')) return;
+  _fullUid = uid;
+  lockRowButtons(uid);
+  showRowProgress(uid, 2, 'Iniciando descarga completa...');
+  document.getElementById('modalUserName').textContent = 'Usuario: ' + userName;
+  setModalProgress(2, 'Iniciando descarga...');
+  document.getElementById('fullRefreshModal').classList.add('open');
+  startGlobalPoll();
+
+  fetch('/admin/user/' + uid + '/refresh/full', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        setModalProgress(-1, '❌ ' + data.error);
+        showRowProgress(uid, -1, '❌ ' + data.error);
+        setTimeout(() => { hideRowProgress(uid); unlockRowButtons(uid); }, 4000);
+        return;
+      }
+      if (_pollInterval) clearInterval(_pollInterval);
+      _pollInterval = setInterval(() => pollFullStatus(uid), 3000);
+    })
+    .catch(() => setModalProgress(-1, '❌ Error de conexión'));
+}
+
+function pollFullStatus(uid) {
+  fetch('/admin/user/' + uid + '/refresh/full/status')
+    .then(r => r.json())
+    .then(data => {
+      const pct = data.pct || 0;
+      setModalProgress(pct, data.msg || '...');
+      showRowProgress(uid, pct, data.msg || '...');
+      if (pct === 100) {
+        clearInterval(_pollInterval);
+        document.getElementById('modalBar').style.background = '#22c55e';
+        setTimeout(() => { hideRowProgress(uid); unlockRowButtons(uid); }, 3000);
+      } else if (pct === -1) {
+        clearInterval(_pollInterval);
+        document.getElementById('modalBar').style.background = '#ef4444';
+        setTimeout(() => { hideRowProgress(uid); unlockRowButtons(uid); }, 4000);
+      }
+    })
+    .catch(() => {});
+}
+
+function setModalProgress(pct, msg) {
+  const p = Math.max(0, Math.min(100, pct));
+  document.getElementById('modalBar').style.width = p + '%';
+  document.getElementById('modalPct').textContent = pct === -1 ? 'Error' : p + '%';
+  document.getElementById('modalMsg').textContent = msg;
+}
+
+function closeModal() {
+  document.getElementById('fullRefreshModal').classList.remove('open');
+  if (_pollInterval) clearInterval(_pollInterval);
+}
+
+async function requestReconnect(uid, userName) {
+  if (!confirm(`¿Pedir a ${userName} que reconecte su cuenta Garmin?\nSus tokens serán eliminados y deberá ingresar sus credenciales de Garmin la próxima vez que entre.`)) return;
+  const res = await fetch(`/admin/user/${uid}/request-reconnect`, { method: 'POST' });
+  const data = await res.json();
+  if (res.ok) {
+    alert(`✓ ${userName} deberá reconectar Garmin en su próximo ingreso.`);
+    location.reload();
+  } else {
+    alert('Error: ' + (data.error || res.status));
+  }
+}
+
+async function toggleGarminSync(uid, currentlyDisabled) {
+  const action = currentlyDisabled ? 'activar' : 'pausar';
+  if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} sincronización con Garmin para este usuario?`)) return;
+  const btn = document.getElementById(`btn-sync-${uid}`);
+  btn.disabled = true;
+  const res = await fetch(`/admin/user/${uid}/toggle-garmin-sync`, { method: 'POST' });
+  const data = await res.json();
+  if (res.ok) {
+    location.reload();
+  } else {
+    btn.disabled = false;
+    alert('Error: ' + (data.error || res.status));
+  }
+}
+</script>
+</body>
+</html>

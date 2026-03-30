@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sento Run — Configurar objetivo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Navbar */
+  .navbar { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .navbar-brand { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .breadcrumb { font-size: 13px; color: rgba(255,255,255,0.6); }
+  .breadcrumb a { color: rgba(255,255,255,0.7); text-decoration: none; }
+  .breadcrumb a:hover { color: white; }
+  .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+  .navbar-links a:hover { color: white; }
+
+  /* Main layout */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 260px; background: white; border-right: 1px solid #e5e7eb; padding: 20px 16px; overflow-y: auto; flex-shrink: 0; }
+  .sidebar h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 14px; }
+  .stat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+  .stat-item:last-child { border-bottom: none; }
+  .stat-label { color: #666; }
+  .stat-value { font-weight: 700; color: #1a1a2e; }
+  .pace-chip { display: inline-block; background: #e8f0fe; color: #1a73e8; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .existing-goal { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px; margin-top: 16px; font-size: 12px; color: #166534; }
+  .existing-goal strong { display: block; margin-bottom: 4px; font-size: 13px; }
+  .tip-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 12px; margin-top: 16px; font-size: 12px; color: #78350f; line-height: 1.5; }
+
+  /* Chat area */
+  .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* Message bubbles */
+  .msg { display: flex; gap: 10px; max-width: 85%; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.assistant { align-self: flex-start; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .avatar.ai { background: linear-gradient(135deg, #1a1a2e, #0f3460); color: white; }
+  .avatar.user { background: #e8f0fe; color: #1a73e8; font-weight: 700; }
+  .bubble { padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; }
+  .bubble.ai { background: white; border: 1px solid #e5e7eb; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .bubble.user { background: #1a73e8; color: white; border-bottom-right-radius: 4px; }
+  .bubble strong { font-weight: 700; }
+  .bubble ul, .bubble ol { margin: 6px 0 6px 16px; }
+  .bubble li { margin: 3px 0; }
+
+  /* Goal draft card */
+  .goal-card { background: #f0fdf4; border: 2px solid #22c55e; border-radius: 14px; padding: 16px 18px; margin-top: 10px; max-width: 520px; }
+  .goal-card-header { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: #166534; margin-bottom: 14px; }
+  .goal-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .goal-field { display: flex; flex-direction: column; gap: 3px; }
+  .goal-field label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
+  .goal-field input, .goal-field select { border: 1px solid #d1fae5; border-radius: 8px; padding: 7px 10px; font-size: 13px; background: white; font-family: inherit; outline: none; transition: border 0.2s; }
+  .goal-field input:focus, .goal-field select:focus { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.15); }
+  .goal-field.full { grid-column: 1 / -1; }
+  .btn-save-goal { display: block; width: 100%; margin-top: 14px; padding: 12px; background: linear-gradient(135deg, #16a34a, #22c55e); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+  .btn-save-goal:hover { opacity: 0.9; }
+  .btn-save-goal:disabled { opacity: 0.5; cursor: not-allowed; }
+  .save-success { display: none; text-align: center; font-size: 13px; color: #16a34a; font-weight: 600; margin-top: 8px; }
+
+  /* Typing indicator */
+  .typing { display: none; align-self: flex-start; }
+  .typing-dots { display: flex; gap: 5px; padding: 12px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 16px; border-bottom-left-radius: 4px; }
+  .typing-dot { width: 7px; height: 7px; background: #9ca3af; border-radius: 50%; animation: bounce 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+  /* Input area */
+  .input-area { border-top: 1px solid #e5e7eb; padding: 14px 20px; background: white; display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; }
+  .input-area textarea { flex: 1; border: 1px solid #e0e0e0; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-family: inherit; resize: none; outline: none; max-height: 120px; min-height: 42px; line-height: 1.5; transition: border 0.2s; overflow-y: auto; }
+  .input-area textarea:focus { border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,0.1); }
+  .btn-send { width: 42px; height: 42px; background: #1a73e8; border: none; border-radius: 10px; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+  .btn-send:hover { background: #1557b0; }
+  .btn-send:disabled { background: #9ca3af; cursor: not-allowed; }
+
+  /* Plan upload */
+  .btn-attach { width: 42px; height: 42px; background: #f3e8ff; border: none; border-radius: 10px; color: #7c3aed; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+  .btn-attach:hover { background: #e9d5ff; }
+  .upload-preview { display: none; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 10px 14px; margin: 0 20px 8px; font-size: 13px; color: #6b21a8; align-items: center; gap: 10px; }
+  .upload-preview.visible { display: flex; }
+  .upload-preview img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; }
+  .upload-status { flex: 1; }
+  .plan-badge { display: inline-block; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 10px; font-size: 12px; color: #166534; margin-top: 8px; }
+
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+    .msg { max-width: 95%; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <div class="navbar-brand">🏃 Sento Run</div>
+    <div class="breadcrumb"><a href="/">Dashboard</a> › Configurar objetivo</div>
+  </div>
+  <div class="navbar-links">
+    <a href="/">← Volver al dashboard</a>
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- Sidebar: 90-day stats -->
+  <aside class="sidebar">
+    <h3>Tus datos · 90 días</h3>
+    <div class="stat-item">
+      <span class="stat-label">Km corridos</span>
+      <span class="stat-value">{{ total_run_km_90 }} km</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Promedio semanal</span>
+      <span class="stat-value">{{ avg_weekly_km }} km</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Carreras</span>
+      <span class="stat-value">{{ run_count_90 }}</span>
+    </div>
+    {% if recent_paces %}
+    <div style="margin-top:12px;">
+      <div style="font-size:12px;color:#888;margin-bottom:6px;">Ritmos recientes</div>
+      {% for p in recent_paces %}
+        <span class="pace-chip">{{ p }} /km</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if existing_goal %}
+    <div class="existing-goal">
+      <strong>🎯 Objetivo actual</strong>
+      {{ existing_goal.race_type }} · {{ existing_goal.target_pace_str }} /km<br>
+      {{ existing_goal.weekly_peak_km }} km/sem pico
+      {% if existing_goal.event_date %}<br>📅 {{ existing_goal.event_date }}{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="tip-box">
+      💡 Cuéntale a Sento tu objetivo, la fecha del evento y cuánto entrenas actualmente. Él evaluará si es viable y te ayudará a estructurarlo.
+    </div>
+  </aside>
+
+  <!-- Chat -->
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <!-- Initial AI greeting -->
+      <div class="msg assistant">
+        <div class="avatar ai">🏃</div>
+        <div class="bubble ai">
+          ¡Hola <strong>{{ user_name }}</strong>! Soy Sento. Ya tengo acceso a tus datos de los últimos 90 días ({{ total_run_km_90 }} km corridos, promedio de {{ avg_weekly_km }} km/semana).<br><br>
+          ¿Cuál es tu próximo objetivo de carrera? Cuéntame qué tienes en mente: tipo de prueba, tiempo o ritmo que buscas y fecha aproximada del evento.
+        </div>
+      </div>
+
+      <div class="typing" id="typing">
+        <div class="typing-dots">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="upload-preview" id="uploadPreview">
+      <img id="uploadThumb" src="" alt="">
+      <div class="upload-status" id="uploadStatus">Procesando imagen…</div>
+    </div>
+    <div class="input-area">
+      <textarea id="userInput" placeholder="Escribe tu mensaje…" rows="1" onkeydown="handleKey(event)"></textarea>
+      <input type="file" id="planFileInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handlePlanUpload(event)">
+      <button type="button" class="btn-attach" onclick="document.getElementById('planFileInput').click()" title="Adjuntar plan de entrenamiento (foto)">📎</button>
+      <button class="btn-send" id="sendBtn" onclick="sendMessage()" title="Enviar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const messagesEl = document.getElementById('messages');
+  const typingEl = document.getElementById('typing');
+  const inputEl = document.getElementById('userInput');
+  const sendBtn = document.getElementById('sendBtn');
+  // history stores {role, content} for context
+  let history = [];
+
+  // Auto-resize textarea
+  inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  });
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function scrollBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function addMessage(role, content) {
+    // Remove typing indicator first
+    if (typingEl.parentNode === messagesEl) {
+      messagesEl.removeChild(typingEl);
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg ' + (role === 'user' ? 'user' : 'assistant');
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar ' + (role === 'user' ? 'user' : 'ai');
+    avatar.textContent = role === 'user' ? '{{ user_name[0].upper() }}' : '🏃';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'ai');
+    bubble.innerHTML = role === 'user' ? escapeHtml(content) : markdownToHtml(content);
+
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(bubble);
+    messagesEl.appendChild(wrapper);
+
+    // Re-add typing indicator at end
+    messagesEl.appendChild(typingEl);
+    scrollBottom();
+    return wrapper;
+  }
+
+  function showGoalCard(goalDraft) {
+    const card = document.createElement('div');
+    card.className = 'goal-card';
+    card.innerHTML = `
+      <div class="goal-card-header">✅ Objetivo estructurado — revisa y confirma</div>
+      <div class="goal-fields">
+        <div class="goal-field">
+          <label>Tipo de prueba</label>
+          <input type="text" id="gf_race_type" value="${esc(goalDraft.race_type || '')}">
+        </div>
+        <div class="goal-field">
+          <label>Ritmo objetivo (MM:SS /km)</label>
+          <input type="text" id="gf_pace" value="${esc(goalDraft.target_pace_str || '')}">
+        </div>
+        <div class="goal-field">
+          <label>Pico semanal (km)</label>
+          <input type="number" id="gf_weekly_peak" value="${esc(goalDraft.weekly_peak_km || '')}">
+        </div>
+        <div class="goal-field">
+          <label>Fecha del evento</label>
+          <input type="date" id="gf_event_date" value="${esc(goalDraft.event_date || '')}">
+        </div>
+        <div class="goal-field">
+          <label>FC fácil / trote (máx bpm)</label>
+          <input type="number" id="gf_easy_hr" value="${esc(goalDraft.easy_hr_max || '')}">
+        </div>
+        <div class="goal-field">
+          <label>FC tempo mínima (bpm)</label>
+          <input type="number" id="gf_tempo_min" value="${esc(goalDraft.tempo_hr_min || '')}">
+        </div>
+        <div class="goal-field">
+          <label>FC tempo máxima (bpm)</label>
+          <input type="number" id="gf_tempo_max" value="${esc(goalDraft.tempo_hr_max || '')}">
+        </div>
+        <div class="goal-field">
+          <label>FC intervalos (mínimo bpm)</label>
+          <input type="number" id="gf_interval_hr" value="${esc(goalDraft.interval_hr_min || '')}">
+        </div>
+        <div class="goal-field full">
+          <label>Descripción del evento</label>
+          <input type="text" id="gf_description" value="${esc(goalDraft.description || '')}">
+        </div>
+        <div class="goal-field full">
+          <label>Lesiones o condiciones físicas</label>
+          <input type="text" id="gf_injuries" value="${esc(goalDraft.injuries || 'ninguna')}" placeholder="Ej: ninguna, rodilla izquierda, tendón de Aquiles...">
+        </div>
+        <div class="goal-field">
+          <label>Días de entrenamiento / semana</label>
+          <input type="number" id="gf_avail_days" min="1" max="7" value="${esc(goalDraft.availability_days || '')}">
+        </div>
+        <div class="goal-field">
+          <label>Horas disponibles / semana</label>
+          <input type="number" id="gf_avail_hours" min="1" max="30" step="0.5" value="${esc(goalDraft.availability_hours_week || '')}">
+        </div>
+        <div class="goal-field">
+          <label>Días de fuerza / semana</label>
+          <input type="number" id="gf_strength_days" min="0" max="4" value="${esc(goalDraft.strength_days ?? 0)}">
+        </div>
+        <div class="goal-field goal-field--full">
+          <label>Preferencias de horario</label>
+          <input type="text" id="gf_schedule_prefs" value="${esc(goalDraft.schedule_preferences || '')}" placeholder="Ej: largo el domingo, descanso lunes, no puedo entrenar miércoles">
+        </div>
+        <div class="goal-field">
+          <label>Duración del plan (semanas)</label>
+          <input type="number" id="gf_plan_weeks" min="4" max="24" value="${esc(goalDraft.plan_duration_weeks || '')}">
+        </div>
+        <div class="goal-field">
+          <label>Fecha de inicio del plan</label>
+          <input type="date" id="gf_plan_start" value="${esc(goalDraft.plan_start_date || '')}">
+        </div>
+      </div>
+      <button class="btn-save-goal" id="saveGoalBtn" onclick="saveGoal()">🚀 Guardar y generar mi plan</button>
+      <div class="save-success" id="saveSuccess" style="display:none">✅ ¡Listo! Preparando tu plan…</div>
+    `;
+    // Insert before typing indicator
+    messagesEl.insertBefore(card, typingEl);
+    scrollBottom();
+  }
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || sendBtn.disabled) return;
+
+    addMessage('user', text);
+    history.push({ role: 'user', content: text });
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+
+    sendBtn.disabled = true;
+    typingEl.style.display = 'flex';
+    scrollBottom();
+
+    try {
+      const resp = await fetch('/goal/setup/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, history: history.slice(0, -1) })
+      });
+      const data = await resp.json();
+
+      typingEl.style.display = 'none';
+
+      if (data.error) {
+        addMessage('assistant', '❌ ' + data.error);
+      } else {
+        addMessage('assistant', data.reply || '');
+        history.push({ role: 'model', content: data.reply || '' });
+        if (data.goal_draft) {
+          showGoalCard(data.goal_draft);
+        }
+      }
+    } catch (err) {
+      typingEl.style.display = 'none';
+      addMessage('assistant', '❌ Error de conexión. Intenta de nuevo.');
+    }
+
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+
+  async function saveGoal() {
+    const btn = document.getElementById('saveGoalBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Guardando objetivo…';
+
+    const paceStr = document.getElementById('gf_pace').value.trim();
+    const parts = paceStr.split(':');
+    const paceMin = parseInt(parts[0]) || 5;
+    const paceSec = parseInt(parts[1]) || 0;
+
+    const availDays = parseInt(document.getElementById('gf_avail_days').value) || null;
+    const availHours = parseFloat(document.getElementById('gf_avail_hours').value) || null;
+    const planWeeks = parseInt(document.getElementById('gf_plan_weeks').value) || null;
+
+    const goal = {
+      race_type: document.getElementById('gf_race_type').value.trim(),
+      target_pace_str: paceStr,
+      target_pace_min: paceMin,
+      target_pace_sec: paceSec,
+      weekly_peak_km: parseFloat(document.getElementById('gf_weekly_peak').value) || 40,
+      easy_hr_max: parseInt(document.getElementById('gf_easy_hr').value) || 155,
+      tempo_hr_min: parseInt(document.getElementById('gf_tempo_min').value) || 155,
+      tempo_hr_max: parseInt(document.getElementById('gf_tempo_max').value) || 170,
+      interval_hr_min: parseInt(document.getElementById('gf_interval_hr').value) || 170,
+      description: document.getElementById('gf_description').value.trim(),
+      event_date: document.getElementById('gf_event_date').value.trim(),
+      injuries: document.getElementById('gf_injuries').value.trim(),
+      availability_days: availDays,
+      availability_hours_week: availHours,
+      strength_days: parseInt(document.getElementById('gf_strength_days').value) || 0,
+      schedule_preferences: document.getElementById('gf_schedule_prefs').value.trim() || 'sin preferencias específicas',
+      plan_duration_weeks: planWeeks,
+      plan_start_date: document.getElementById('gf_plan_start').value.trim(),
+    };
+
+    try {
+      // Paso 1: guardar objetivo
+      const resp = await fetch('/goal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(goal)
+      });
+      const data = await resp.json();
+      if (data.status !== 'ok') {
+        btn.textContent = '❌ Error: ' + (data.error || 'desconocido');
+        btn.disabled = false;
+        return;
+      }
+
+      // Paso 2: iniciar generación del plan (async — no espera a que termine)
+      btn.textContent = '⏳ Iniciando generación del plan…';
+      fetch('/chat/history/clear', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'goal_setup'}) }).catch(()=>{});
+      fetch('/goal/generate-plan', { method: 'POST' }).catch(()=>{});
+
+      document.getElementById('saveSuccess').style.display = 'block';
+      btn.textContent = '✅ ¡Listo!';
+      setTimeout(() => window.location.href = '/plan', 1200);
+    } catch (err) {
+      btn.textContent = '❌ Error de red';
+      btn.disabled = false;
+    }
+  }
+
+  // Simple markdown-to-html (bold, lists)
+  function markdownToHtml(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+      .replace(/\n{2,}/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function escapeHtml(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function esc(v) {
+    return String(v).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  // Training plan image upload
+  async function handlePlanUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show preview
+    const preview = document.getElementById('uploadPreview');
+    const thumb = document.getElementById('uploadThumb');
+    const status = document.getElementById('uploadStatus');
+    thumb.src = URL.createObjectURL(file);
+    status.textContent = '⏳ Leyendo plan con IA…';
+    preview.classList.add('visible');
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const resp = await fetch('/goal/setup/upload-plan', { method: 'POST', body: formData });
+      const data = await resp.json();
+
+      if (data.error) {
+        status.textContent = '❌ ' + data.error;
+        return;
+      }
+
+      status.innerHTML = '✅ <strong>Plan cargado.</strong> ' + (data.summary || '');
+
+      // Show extracted plan as AI message
+      const planMsg = `📋 **Plan de entrenamiento cargado**\n\n${data.plan_text}`;
+      addMessage('assistant', planMsg);
+      history.push({ role: 'model', content: planMsg });
+
+      // Add a sidebar badge
+      const sidebar = document.querySelector('.sidebar');
+      let badge = document.getElementById('planBadge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'planBadge';
+        badge.className = 'plan-badge';
+        sidebar.appendChild(badge);
+      }
+      badge.textContent = '📋 Plan cargado — ' + (data.summary || 'listo');
+
+    } catch (err) {
+      status.textContent = '❌ Error de conexión';
+    }
+
+    // Reset file input so same file can be re-uploaded
+    event.target.value = '';
+  }
+
+  // Load persistent history
+  async function loadHistory() {
+    try {
+      const res = await fetch('/chat/history?type=goal_setup');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.history && data.history.length > 0) {
+        history = data.history.map(m => ({ role: m.role, content: m.content }));
+        data.history.forEach(m => addMessage(m.role, m.content));
+      }
+    } catch(e) { /* start fresh */ }
+  }
+  loadHistory();
+
+  // Focus input on load
+  inputEl.focus();
+
+  // Detect and save browser timezone
+  (function() {
+    const stored = '{{ session.timezone | default("") }}';
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (detected && detected !== stored) {
+      fetch('/set-timezone', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({timezone: detected})}).catch(()=>{});
+    }
+  })();
+</script>
+</body>
+</html>
