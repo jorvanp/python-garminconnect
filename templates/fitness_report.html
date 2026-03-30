@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Análisis Físico — 12 de marzo de 2026</title>
+<title>Sento Run</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
   .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
   h2 { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
@@ -23,15 +24,132 @@
   .chart-box { background: #fff; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 8px #0001; }
   .chart-wrap { position: relative; height: 160px; width: 100%; }
   .tag { display: inline-block; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+  .spin { display:inline-block;animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  /* AI Chat */
+  #aiChatSection { border-left:5px solid #6366f1;background:#fafafe; }
+  #aiQuestion { width:100%;border:1px solid #e0e0e0;border-radius:10px;padding:14px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;transition:border 0.2s;outline:none; }
+  #aiQuestion:focus { border-color:#6366f1;box-shadow:0 0 0 3px #6366f120; }
+  #charCount { font-size:12px;color:#aaa;text-align:right;margin-top:4px; }
+  #askBtn { background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:30px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity 0.2s;margin-top:10px; }
+  #askBtn:hover { opacity:0.88; }
+  #askBtn:disabled { opacity:0.5;cursor:not-allowed; }
+  #aiResponse { margin-top:16px;padding:16px;background:#fff;border-radius:10px;border:1px solid #e8e8f0;min-height:60px;font-size:14px;color:#333;line-height:1.7;display:none; }
+  #aiLoader { display:none;text-align:center;padding:20px;color:#6366f1;font-size:14px;gap:8px;align-items:center;justify-content:center; }
+  /* Chat bubbles */
+  #chatHistory { display:flex;flex-direction:column;gap:10px;margin-bottom:14px;max-height:420px;overflow-y:auto;padding:4px 2px; }
+  .chat-bubble { max-width:88%;padding:12px 15px;border-radius:14px;font-size:14px;line-height:1.6;word-break:break-word; }
+  .bubble-user { align-self:flex-end;background:#6366f1;color:#fff;border-bottom-right-radius:4px; }
+  .bubble-model { align-self:flex-start;background:#f1f3f9;color:#222;border-bottom-left-radius:4px; }
+  .chat-input-row { display:flex;gap:10px;align-items:flex-end; }
+  #aiQuestion { flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;font-size:14px;font-family:inherit;resize:none;min-height:48px;max-height:120px;overflow-y:auto;transition:border 0.2s;outline:none; }
+  #aiQuestion:focus { border-color:#6366f1;box-shadow:0 0 0 3px #6366f120; }
+  #charCount { font-size:11px;color:#aaa;text-align:right;margin-top:2px; }
 </style>
 </head>
 <body>
+
+<!-- NAVBAR -->
+<nav style="background:linear-gradient(135deg,#1a1a2e,#0f3460);color:white;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.25);">
+  <div style="font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;">
+    🏃 Sento Run
+    {% if _admin_viewing %}<span style="background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">VISTA ADMIN: {{ _admin_user_email }}</span>{% endif %}
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;font-size:13px;">
+    {% if session.is_admin %}<a href="/admin/" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:600;">⚙️ Admin</a>{% endif %}
+    {% if session.picture_url %}<img src="{{ session.picture_url }}" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);" alt="">{% endif %}
+    <span style="color:rgba(255,255,255,0.9);">{{ session.display_name or session.email or '' }}</span>
+    <a href="/auth/logout" style="color:rgba(255,255,255,0.7);text-decoration:none;">Salir</a>
+  </div>
+</nav>
+
 <div class="container">
+
+  {% if garmin_sync_disabled %}
+  <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:10px;padding:14px 18px;margin-bottom:18px;">
+    <div style="color:#1e40af;font-size:14px;margin-bottom:10px;">🔧 <strong>Sincronización con Garmin temporalmente desactivada.</strong> Estamos trabajando para restablecer la conexión. Mientras tanto, puedes importar tus actividades manualmente desde Garmin Connect.</div>
+    <div style="font-size:13px;color:#1d4ed8;margin-bottom:10px;">Para exportar tu CSV: abre <strong>Garmin Connect → Actividades → Descargar datos</strong> y sube el archivo aquí:</div>
+    <label id="csv-label-disabled" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-block;">
+      📂 Importar actividades desde CSV
+      <input type="file" accept=".csv" style="display:none" onchange="uploadCSV(this)">
+    </label>
+  </div>
+  {% endif %}
+
+  {% if garmin_reconnect_needed %}
+  <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <span style="color:#9a3412;font-size:14px;">⚠️ <strong>Conexión con Garmin interrumpida.</strong> Estás viendo tus últimos datos guardados.</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <label id="csv-label-reconnect" style="background:#16a34a;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
+        📂 Importar CSV de Garmin
+        <input type="file" accept=".csv" style="display:none" onchange="uploadCSV(this)">
+      </label>
+      <a href="/garmin-reconnect" style="background:#ea580c;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;">🔌 Reconectar Garmin</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <div id="csv-upload-msg" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#166534;"></div>
+
+  <script>
+  function _disableCsvButtons(text) {
+    ['csv-label-disabled', 'csv-label-reconnect'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.opacity = '0.5';
+      el.style.pointerEvents = 'none';
+      el.style.cursor = 'default';
+      el.childNodes[0].textContent = text;
+    });
+  }
+
+  async function uploadCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const msg = document.getElementById('csv-upload-msg');
+    msg.style.display = 'block';
+    msg.style.background = '#f0fdf4'; msg.style.borderColor = '#86efac'; msg.style.color = '#166534';
+    msg.textContent = '⏳ Subiendo actividades...';
+    _disableCsvButtons(' ⏳ Subiendo...');
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/upload-activities', {method: 'POST', body: form});
+      const data = await res.json();
+      if (data.error) {
+        msg.style.background = '#fef2f2'; msg.style.borderColor = '#fca5a5'; msg.style.color = '#991b1b';
+        msg.textContent = '❌ ' + data.error;
+        ['csv-label-disabled','csv-label-reconnect'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.style.opacity='1'; el.style.pointerEvents='auto'; el.style.cursor='pointer'; el.childNodes[0].textContent = '📂 Importar CSV'; }
+        });
+      } else {
+        const label = data.added > 0 ? `✅ ${data.added} actividades importadas. Generando prescripción...` : '✅ Generando prescripción con datos existentes...';
+        msg.textContent = label;
+        _disableCsvButtons('✅ Procesando...');
+        setTimeout(() => { window.location.href = '/'; }, 1500);
+      }
+    } catch(e) {
+      msg.style.background = '#fef2f2'; msg.style.color = '#991b1b';
+      msg.textContent = '❌ Error al subir el archivo.';
+    }
+  }
+  </script>
 
   <!-- HEADER -->
   <div class="header">
-    <h1>📊 Análisis de Condición Física</h1>
-    <p>{{ user_profile.full_name | default("Jorvan") }} · {{ date_str }} · Altitud de entrenamiento: ~2,263m</p>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1>📊 Análisis de Condición Física</h1>
+        <p>{{ user_profile.full_name | default("Jorvan") }} · {{ date_str }} · Altitud de entrenamiento: ~2,263m</p>
+      </div>
+      <div style="text-align:right;">
+        {% if last_refresh %}
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:2px;">Última actualización</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;">{{ last_refresh | ts_cdmx }}</div>
+        {% endif %}
+      </div>
+    </div>
   </div>
 
   <!-- SNAPSHOT DE HOY -->
@@ -53,19 +171,14 @@
             <div style="font-size:12px;color:#aaa;margin-top:2px;">Promedio mensual: {{ chart_rhr[-1] if chart_rhr else '—' }}</div>
         </div>
       
-        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
-            <div style="font-size:22px;">🔋</div>
-            <div style="font-size:28px;font-weight:800;color:#ef4444;">{{ body_battery }}<span style="font-size:14px;font-weight:400;color:#999;"> %</span></div>
-            <div style="font-size:13px;color:#666;margin-top:2px;">Body Battery</div>
-            <div style="font-size:12px;color:#aaa;margin-top:2px;">Última medición</div>
-        </div>
-      
+        {% if sleep_hours and sleep_hours > 0 %}
         <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
             <div style="font-size:22px;">😴</div>
             <div style="font-size:28px;font-weight:800;color:#eab308;">{{ sleep_hours }}<span style="font-size:14px;font-weight:400;color:#999;"> h</span></div>
             <div style="font-size:13px;color:#666;margin-top:2px;">Sueño anoche</div>
             <div style="font-size:12px;color:#aaa;margin-top:2px;">Score: {{ sleep_score }}</div>
         </div>
+        {% endif %}
       
         <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
             <div style="font-size:22px;">🧠</div>
@@ -76,49 +189,152 @@
     </div>
   </div>
 
-  <!-- PRESCRIPCIÓN DEL DÍA -->
+  <!-- COACH IA CHAT -->
+  <div class="section" id="aiChatSection">
+    <h2>🤖 Sento IA — Pregúntale a tus datos</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">
+      Contexto de <strong>{{ days_loaded }} días cargados</strong>
+      {% if earliest_date %}<span style="color:#aaa;font-size:12px;">(desde {{ earliest_date }})</span>{% endif %}
+      de Garmin. Pregunta lo que quieras: Sento recuerda toda la conversación.
+    </p>
+    <div id="chatHistory"></div>
+    <div id="aiLoader"><span class="spin">⚙️</span>&nbsp;Analizando recomendaciones…</div>
+    <div class="chat-input-row">
+      <textarea id="aiQuestion" maxlength="500" rows="1" placeholder="Escribe aquí tu pregunta…" onkeydown="handleKey(event)"></textarea>
+      <button id="askBtn" onclick="askAI()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity 0.2s;">✨ Enviar</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+      <div id="charCount">0 / 500</div>
+      <button onclick="clearChat()" style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;padding:0;">🗑 Nueva conversación</button>
+    </div>
+  </div>
   
+  <!-- PRESCRIPCIÓN + OBJETIVO -->
   <div class="section" style="border-left:5px solid #ef4444;background:#fff1f2;">
-    <h2>📋 Prescripción del Día · Plan Maratón (objetivo 4:40 /km)</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <h2 style="margin-bottom:0;">📋 Prescripción del Día{% if goal_configured %} · {{ training_goal.race_type }} (objetivo {{ training_goal.target_pace_str }} /km){% endif %}</h2>
+      {% if not _admin_viewing %}
+      <div style="display:flex;gap:8px;">
+        <a href="/goal/setup" style="display:inline-flex;align-items:center;gap:6px;background:#e8f0fe;border:1px solid #c5d8fc;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#1a73e8;cursor:pointer;text-decoration:none;transition:all 0.2s;" title="Configurar objetivo con asistente IA">
+          🤖 Configurar con IA
+        </a>
+        <button onclick="openGoalModal()" style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #e0e0e0;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#555;cursor:pointer;transition:all 0.2s;" title="Editar manualmente tu objetivo">
+          ✏️ Editar
+        </button>
+      </div>
+      {% endif %}
+    </div>
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
-      <div style="flex:2;min-width:260px;">
-        {% if ai_recommendation %}
-            {{ ai_recommendation | safe }}
-        {% else %}
-            <div style="font-size:22px;font-weight:800;color:#ef4444;margin-bottom:6px;">🔴 Día de recuperación recomendado</div>
-            <div style="font-size:14px;color:#444;line-height:1.6;">Tus indicadores muestran fatiga acumulada significativa. Reemplaza cualquier sesión de calidad por trote muy suave (30 min <145 bpm), movilidad o descanso completo.</div>
-            <div style='margin-top:10px;'><span style='font-size:12px;font-weight:700;color:#ef4444;'>⚠️ Señales de fatiga:</span><ul style='margin:4px 0 0 16px;font-size:13px;color:#555;line-height:1.8;'><li>Body Battery actual ({{ body_battery }}%)</li><li>Calidad del sueño ({{ sleep_score }} pts)</li><li>Horas de sueño ({{ sleep_hours }}h)</li></ul></div><div style='margin-top:8px;'><span style='font-size:12px;font-weight:700;color:#22c55e;'>✅ Señales positivas:</span><ul style='margin:4px 0 0 16px;font-size:13px;color:#555;line-height:1.8;'><li>FC reposo ({{ rhr }} bpm)</li></ul></div>
-        {% endif %}
+      <div style="flex:2;min-width:260px;" id="prescripcion-ia">
+        {{ ai_recommendation | safe }}
       </div>
       <div style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 4px #0001;">
+        {% if goal_configured %}
         <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;">OBJETIVOS DEL PLAN</div>
-        <div style="font-size:13px;color:#444;line-height:2;">
-          🎯 Ritmo maratón: <strong>4:40 /km</strong><br>
-          🟢 Trote suave:    <strong>&lt;160 bpm</strong><br>
-          🟡 Fondo largo:    <strong>160–170 bpm</strong><br>
-          🔴 Intervalos:     <strong>≥170 bpm</strong><br>
-          📏 Pico semanal:   <strong>80–90 km</strong>
+        <div style="font-size:13px;color:#444;line-height:2.1;">
+          🎯 Ritmo meta: <strong>{{ training_goal.target_pace_str }} /km</strong><br>
+          🟢 Trote suave: <strong>&lt;{{ training_goal.easy_hr_max }} bpm</strong><br>
+          🟡 Fondo largo: <strong>{{ training_goal.tempo_hr_min }}–{{ training_goal.tempo_hr_max }} bpm</strong><br>
+          🔴 Intervalos: <strong>≥{{ training_goal.interval_hr_min }} bpm</strong><br>
+          📏 Pico semanal: <strong>{{ training_goal.weekly_peak_km | int }} km</strong>
         </div>
+        {% if training_goal.description %}
+        <div style="margin-top:10px;font-size:12px;color:#888;border-top:1px solid #f0f0f0;padding-top:8px;">{{ training_goal.description }}</div>
+        {% endif %}
+        {% if not _admin_viewing %}
+        <a href="/plan" style="display:block;text-align:center;background:#1a1a2e;color:white;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;text-decoration:none;margin-top:12px;">📅 Ver plan de entrenamiento</a>
+        {% endif %}
+        {% else %}
+        <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;">SIN OBJETIVO CONFIGURADO</div>
+        <div style="font-size:13px;color:#666;line-height:1.7;margin-bottom:14px;">La prescripción se basa en tus métricas y actividades recientes.</div>
+        {% if not _admin_viewing %}
+        <a href="/goal/setup" style="display:block;text-align:center;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;text-decoration:none;">
+          🎯 Configurar objetivo
+        </a>
+        {% endif %}
+        {% endif %}
       </div>
     </div>
-    
-        <div style="margin-top:14px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:4px;">
-            <span>0 km</span>
-            <span>60 km (base)</span>
-            <span>80 km (pico)</span>
-            <span>90 km (máx)</span>
-          </div>
-          <div style="position:relative;height:18px;background:#e5e7eb;border-radius:9px;overflow:hidden;">
-            <div style="position:absolute;left:0;top:0;height:100%;width:{{ weekly_progress_pct }}%;background:#eab308;border-radius:9px;transition:width 0.3s;"></div>
-            <div style="position:absolute;left:66.7%;top:0;height:100%;width:2px;background:#6b7280;opacity:0.5;"></div>
-            <div style="position:absolute;left:88.9%;top:0;height:100%;width:2px;background:#6b7280;opacity:0.5;"></div>
-          </div>
-          <div style="font-size:13px;color:#555;margin-top:6px;"><strong>{{ total_run_distance }} km</strong> acumulados esta semana. Faltan ~{{ weekly_remaining }} km para una semana pico de 80 km.</div>
+
+    <!-- Barra de progreso semanal -->
+    <div style="margin-top:16px;">
+      {% if goal_configured %}
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:4px;">
+        <span>0 km</span>
+        <span>{{ (training_goal.weekly_peak_km * 0.75) | round(0) | int }} km (base)</span>
+        <span>{{ training_goal.weekly_peak_km | int }} km (pico)</span>
+        <span>{{ (training_goal.weekly_peak_km * 1.125) | round(0) | int }} km (máx)</span>
+      </div>
+      <div style="position:relative;height:18px;background:#e5e7eb;border-radius:9px;overflow:hidden;">
+        <div style="position:absolute;left:0;top:0;height:100%;width:{{ weekly_progress_pct }}%;background:#eab308;border-radius:9px;transition:width 0.3s;"></div>
+        <div style="position:absolute;left:{{ marker_base_pct }}%;top:0;height:100%;width:2px;background:#6b7280;opacity:0.5;"></div>
+        <div style="position:absolute;left:{{ [marker_peak_pct, 97] | min }}%;top:0;height:100%;width:2px;background:#6b7280;opacity:0.5;"></div>
+      </div>
+      <div style="font-size:13px;color:#555;margin-top:6px;"><strong>{{ total_run_distance }} km</strong> acumulados esta semana · Faltan ~<strong>{{ weekly_remaining }} km</strong> para el pico de {{ training_goal.weekly_peak_km | int }} km.</div>
+      {% else %}
+      <div style="font-size:13px;color:#555;"><strong>{{ total_run_distance }} km</strong> corridos esta semana · {{ runs_count }} carrera{{ 's' if runs_count != 1 else '' }}.</div>
+      {% endif %}
+    </div>
+
+    <!-- Gráfico km por semana (últimas 7 semanas) -->
+    <div style="margin-top:20px;">
+      <div style="font-size:13px;font-weight:700;color:#555;margin-bottom:8px;">📊 Kilómetros semanales — últimas 7 semanas</div>
+      <div style="position:relative;height:140px;"><canvas id="chartWeeklyKm"></canvas></div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR OBJETIVO -->
+  <div id="goalModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:460px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <h3 style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">✏️ Editar objetivo de entrenamiento</h3>
+      <p style="font-size:13px;color:#888;margin-bottom:18px;">Los cambios se guardan en tu perfil y actualizan la prescripción del día.</p>
+      <div id="goalSaveWarning" style="display:none;background:#fff8e1;border-left:3px solid #f59e0b;border-radius:6px;padding:10px 12px;font-size:13px;color:#7c5200;margin-bottom:14px;">
+        ⚠️ Ya tienes un objetivo guardado. Al guardar, <strong>será sobreescrito</strong>.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px;">Tipo de carrera</label>
+          <input id="gRaceType" type="text" placeholder="ej. Media Maratón, 10K, Maratón" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;" value="{{ training_goal.race_type }}">
         </div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px;">Ritmo meta (MM:SS /km)</label>
+            <input id="gPace" type="text" placeholder="4:30" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;" value="{{ training_goal.target_pace_str }}">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px;">Pico semanal (km)</label>
+            <input id="gWeeklyPeak" type="number" min="5" max="300" placeholder="80" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;" value="{{ training_goal.weekly_peak_km | int }}">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px;">FC trote suave (máx bpm)</label>
+            <input id="gEasyHr" type="number" min="100" max="200" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;" value="{{ training_goal.easy_hr_max }}">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px;">FC fondo largo (min–máx)</label>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <input id="gTempoMin" type="number" min="100" max="200" style="width:50%;border:1px solid #ddd;border-radius:8px;padding:10px 8px;font-size:14px;font-family:inherit;outline:none;" value="{{ training_goal.tempo_hr_min }}">
+              <span style="color:#aaa;font-size:13px;">–</span>
+              <input id="gTempoMax" type="number" min="100" max="210" style="width:50%;border:1px solid #ddd;border-radius:8px;padding:10px 8px;font-size:14px;font-family:inherit;outline:none;" value="{{ training_goal.tempo_hr_max }}">
+            </div>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px;">Descripción / contexto (opcional)</label>
+          <input id="gDesc" type="text" placeholder="ej. Preparación para San José 2026" maxlength="200" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;" value="{{ training_goal.description or '' }}">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button onclick="saveGoal()" style="flex:1;background:linear-gradient(135deg,#1a1a2e,#0f3460);color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">💾 Guardar objetivo</button>
+        <button onclick="closeGoalModal()" style="flex:1;background:#f4f6f9;color:#444;border:1px solid #e0e0e0;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;">Cancelar</button>
+      </div>
+      <div id="goalSaveStatus" style="display:none;margin-top:12px;font-size:13px;text-align:center;"></div>
+    </div>
   </div>
 
   <!-- SUEÑO DETALLE -->
+  {% if sleep_hours and sleep_hours > 0 %}
   <div class="section">
     <h2>😴 Calidad de Sueño — Anoche</h2>
     <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
@@ -150,10 +366,16 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   <!-- ACTIVIDADES ESTA SEMANA -->
   <div class="section">
-    <h2>🏃 Actividades — Últimos 7 Días</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:2px solid #e0e0e0;padding-bottom:8px;">
+      <h2 style="margin:0;border:none;padding:0;">🏃 Actividades — Últimos 7 Días</h2>
+      <button onclick="openWeeklySummaryModal()" style="display:inline-flex;align-items:center;gap:6px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#0369a1;cursor:pointer;">
+        📊 Progreso semanal
+      </button>
+    </div>
     <div class="stat-row" style="margin-bottom:20px;">
       <div style="background:#f0fdf4;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
         <div style="font-size:24px;font-weight:800;color:#22c55e;">{{ runs_count }}</div>
@@ -168,7 +390,7 @@
         <div style="font-size:13px;color:#666;">km totales carrera</div>
       </div>
       <div style="background:#fdf4ff;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
-        <div style="font-size:24px;font-weight:800;color:#a855f7;">—</div>
+        <div style="font-size:24px;font-weight:800;color:#a855f7;">{{ total_load_7d }}</div>
         <div style="font-size:13px;color:#666;">Carga total</div>
       </div>
     </div>
@@ -194,8 +416,8 @@
             <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">
                 <span style="color:#888;font-weight:600;">{{ act._pace }}</span>
             </td>
-            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;font-weight:700;color:#ef4444;">—</td>
-            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">—</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;font-weight:700;color:#ef4444;">{{ act._load }}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">{{ act._effect }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -203,29 +425,8 @@
     </div>
   </div>
 
-  <!-- RECOMENDACIONES -->
-  <div class="section">
-    <h2>🎯 Recomendaciones Personalizadas</h2>
-    
-        <div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:8px;padding:14px 18px;margin-bottom:12px;">
-            <div style="font-size:18px;font-weight:700;color:#22c55e;">📈 VO2 Máx en ascenso</div>
-            <div style="font-size:12px;color:#888;margin-bottom:4px;">VO2 Máx</div>
-            <div style="font-size:14px;color:#444;line-height:1.5;">Tu VO2 máx subió a 49 ml/kg/min (Muy bueno). El entrenamiento por intervalos está funcionando. Continúa incorporando sesiones de alta intensidad 1-2 veces/semana.</div>
-        </div>
-        <div style="background:#fff7ed;border-left:4px solid #f97316;border-radius:8px;padding:14px 18px;margin-bottom:12px;">
-            <div style="font-size:18px;font-weight:700;color:#f97316;">😴 Seguimiento de Sueño ({{ sleep_hours }}h)</div>
-            <div style="font-size:12px;color:#888;margin-bottom:4px;">Sueño</div>
-            <div style="font-size:14px;color:#444;line-height:1.5;">Menos de 7h de sueño impacta negativamente en la recuperación muscular, la hormona de crecimiento y el rendimiento. Prioriza acostarte más temprano.</div>
-        </div>
-        <div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:8px;padding:14px 18px;margin-bottom:12px;">
-            <div style="font-size:18px;font-weight:700;color:#22c55e;">🏃 Buen volumen semanal de carrera (24.4 km)</div>
-            <div style="font-size:12px;color:#888;margin-bottom:4px;">Volumen</div>
-            <div style="font-size:14px;color:#444;line-height:1.5;">Mantén consistencia. Si tu objetivo es aumentar volumen, no superes el 10% semanal para evitar lesiones por sobreuso.</div>
-        </div>
-  </div>
-
-  <!-- TENDENCIAS HISTÓRICAS (charts) -->
-  <div class="section">
+  <!-- TENDENCIAS HISTÓRICAS (charts) — oculto temporalmente -->
+  <div class="section" style="display:none">
     <h2>📈 Tendencias Históricas (6 meses)</h2>
     <div class="chart-grid">
       <div class="chart-box">
@@ -255,8 +456,8 @@
     </div>
   </div>
 
-  <!-- TABLA MENSUAL -->
-  <div class="section">
+  <!-- TABLA MENSUAL — oculto temporalmente -->
+  <div class="section" style="display:none">
     <h2>📅 Resumen Mensual</h2>
     <div style="overflow-x:auto;">
     <table>
@@ -339,8 +540,13 @@
     </div>
   </div>
 
-  <p style="text-align:center;color:#bbb;font-size:12px;padding:12px 0;">
-    Generado automáticamente · Datos de Garmin Connect · 2026-03-12
+  <!-- OLD COACH IA SECTION REMOVED - now it's above -->
+
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:12px;color:#78350f;line-height:1.6;">
+    ⚠️ <strong>Aviso importante:</strong> Las recomendaciones generadas por Sento Run son <strong>orientativas</strong> y se basan en datos de Garmin Connect. <strong>No constituyen asesoramiento médico ni deportivo profesional.</strong> El uso de esta información es responsabilidad exclusiva del usuario. Consulta con un profesional de la salud o entrenador certificado antes de tomar decisiones de entrenamiento.
+  </div>
+  <p style="text-align:center;color:#bbb;font-size:12px;padding:8px 0;">
+    Sento Run · Datos de Garmin Connect · Actualización automática cada hora
   </p>
 </div>
 
@@ -397,6 +603,456 @@ new Chart(document.getElementById('chartStrength'), {
     datasets:[{data:[7,10,6,7,5,2,2], backgroundColor:'#22c55e80', borderColor:'#22c55e', borderRadius:6}]
   }, options:baseOpts
 });
+
+// --- WEEKLY KM CHART ---
+const weeklyKmLabels = {{ weekly_km_chart_labels | tojson }};
+const weeklyKmData = {{ weekly_km_chart_data | tojson }};
+const weeklyPeak = {{ training_goal.weekly_peak_km }};
+new Chart(document.getElementById('chartWeeklyKm'), {
+  type: 'bar',
+  data: {
+    labels: weeklyKmLabels,
+    datasets: [
+      {
+        label: 'Km corridos',
+        data: weeklyKmData,
+        backgroundColor: weeklyKmData.map(v => v >= weeklyPeak ? '#22c55e80' : '#3b82f680'),
+        borderColor: weeklyKmData.map(v => v >= weeklyPeak ? '#22c55e' : '#3b82f6'),
+        borderRadius: 6,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} km` } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+      y: {
+        grid: { color: '#f0f0f0' }, ticks: { font: { size: 11 } },
+        suggestedMax: weeklyPeak * 1.2,
+      }
+    }
+  }
+});
+
+// --- GOAL MODAL ---
+const hasExistingGoal = {{ 'true' if training_goal.race_type != 'Carrera' or training_goal.description else 'false' }};
+function openGoalModal() {
+  if (hasExistingGoal) document.getElementById('goalSaveWarning').style.display = 'block';
+  document.getElementById('goalModal').style.display = 'flex';
+}
+function closeGoalModal() {
+  document.getElementById('goalModal').style.display = 'none';
+  document.getElementById('goalSaveStatus').style.display = 'none';
+}
+document.getElementById('goalModal').addEventListener('click', function(e) {
+  if (e.target === this) closeGoalModal();
+});
+async function saveGoal() {
+  const payload = {
+    race_type: document.getElementById('gRaceType').value.trim(),
+    target_pace_str: document.getElementById('gPace').value.trim(),
+    weekly_peak_km: parseFloat(document.getElementById('gWeeklyPeak').value),
+    easy_hr_max: parseInt(document.getElementById('gEasyHr').value),
+    tempo_hr_min: parseInt(document.getElementById('gTempoMin').value),
+    tempo_hr_max: parseInt(document.getElementById('gTempoMax').value),
+    interval_hr_min: parseInt(document.getElementById('gTempoMax').value) + 1,
+    description: document.getElementById('gDesc').value.trim(),
+  };
+  const status = document.getElementById('goalSaveStatus');
+  status.style.display = 'block';
+  status.style.color = '#888';
+  status.textContent = 'Guardando...';
+  try {
+    const res = await fetch('/goal', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (res.ok) {
+      status.style.color = '#166534';
+      status.textContent = '✅ Objetivo guardado. Recargando...';
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      status.style.color = '#b91c1c';
+      status.textContent = '❌ ' + (data.error || 'Error al guardar.');
+    }
+  } catch(e) {
+    status.style.color = '#b91c1c';
+    status.textContent = '❌ Error de conexión.';
+  }
+}
+
+// --- AI CHAT with persistent history ---
+let conversationHistory = [];
+
+const _viewedUid = "{{ _viewed_uid | default('') }}";
+
+async function loadChatHistory() {
+  try {
+    const url = '/chat/history?type=dashboard' + (_viewedUid ? '&uid=' + _viewedUid : '');
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.history && data.history.length > 0) {
+      conversationHistory = data.history.map(m => ({ role: m.role, content: m.content }));
+      conversationHistory.forEach(m => appendBubble(m.role, m.content));
+      const el = document.getElementById('chatHistory');
+      el.scrollTop = el.scrollHeight;
+    }
+  } catch(e) { /* silently ignore — start with empty chat */ }
+}
+loadChatHistory();
+
+// Detect and save browser timezone (once per session)
+(function() {
+  const stored = '{{ session.timezone | default("") }}';
+  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (detected && detected !== stored) {
+    fetch('/set-timezone', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({timezone: detected})
+    }).catch(() => {});
+  }
+})();
+
+
+document.getElementById('aiQuestion').addEventListener('input', function() {
+  document.getElementById('charCount').textContent = this.value.length + ' / 500';
+  // Auto-resize
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askAI(); }
+}
+
+function renderMarkdown(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^###\s(.+)$/gm,'<h4 style="margin:8px 0 2px;font-size:13px;">$1</h4>')
+    .replace(/^##\s(.+)$/gm,'<h3 style="margin:8px 0 2px;">$1</h3>')
+    .replace(/^[-*]\s(.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/gs, '<ul style="margin:4px 0 4px 16px;line-height:1.8;">$1</ul>')
+    .replace(/\n{2,}/g,'<br><br>')
+    .replace(/\n/g,'<br>');
+}
+
+function appendBubble(role, text) {
+  const history = document.getElementById('chatHistory');
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble ' + (role === 'user' ? 'bubble-user' : 'bubble-model');
+  bubble.innerHTML = role === 'user'
+    ? text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')
+    : renderMarkdown(text);
+  history.appendChild(bubble);
+  history.scrollTop = history.scrollHeight;
+}
+
+async function clearChat() {
+  conversationHistory = [];
+  document.getElementById('chatHistory').innerHTML = '';
+  try {
+    await fetch('/chat/history/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'dashboard' })
+    });
+  } catch(e) { /* ignore */ }
+}
+
+async function askAI() {
+  const input = document.getElementById('aiQuestion');
+  const question = input.value.trim();
+  if (!question) return;
+
+  const btn = document.getElementById('askBtn');
+  const loader = document.getElementById('aiLoader');
+
+  // Show user bubble
+  appendBubble('user', question);
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('charCount').textContent = '0 / 500';
+
+  btn.disabled = true;
+  loader.style.display = 'flex';
+
+  try {
+    const res = await fetch('/ask-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, history: conversationHistory })
+    });
+    const data = await res.json();
+    loader.style.display = 'none';
+
+    if (res.ok && data.response) {
+      appendBubble('model', data.response);
+      // Save both turns to history for next round
+      conversationHistory.push({ role: 'user', content: question });
+      conversationHistory.push({ role: 'model', content: data.response });
+    } else {
+      appendBubble('model', '❌ ' + (data.error || 'Error desconocido'));
+    }
+  } catch(e) {
+    loader.style.display = 'none';
+    appendBubble('model', '❌ Error de conexión: ' + e.message);
+  }
+
+  btn.disabled = false;
+  input.focus();
+}
+</script>
+
+{% if not _admin_viewing %}
+<!-- Feedback floating button -->
+<style>
+  .fab-feedback { position:fixed; bottom:24px; right:24px; width:48px; height:48px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; border:none; border-radius:50%; font-size:20px; cursor:pointer; box-shadow:0 4px 16px rgba(99,102,241,0.4); z-index:500; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,box-shadow 0.2s; }
+  .fab-feedback:hover { transform:scale(1.1); box-shadow:0 6px 20px rgba(99,102,241,0.5); }
+  .feedback-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:600; align-items:flex-end; justify-content:flex-end; padding:0 24px 84px; }
+  .feedback-modal.open { display:flex; }
+  .feedback-box { background:white; border-radius:16px; padding:20px; width:100%; max-width:360px; box-shadow:0 8px 40px rgba(0,0,0,0.2); }
+  .feedback-box h4 { font-size:15px; font-weight:800; color:#1a1a2e; margin-bottom:4px; }
+  .feedback-box p { font-size:12px; color:#888; margin-bottom:12px; }
+  .feedback-box textarea { width:100%; border:1px solid #e0e0e0; border-radius:10px; padding:10px 12px; font-size:13px; font-family:inherit; resize:none; height:100px; outline:none; transition:border 0.2s; }
+  .feedback-box textarea:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,0.1); }
+  .feedback-actions { display:flex; gap:8px; margin-top:10px; }
+  .btn-send-fb { flex:1; padding:10px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; transition:opacity 0.2s; }
+  .btn-send-fb:hover { opacity:0.9; }
+  .btn-send-fb:disabled { opacity:0.5; cursor:not-allowed; }
+  .btn-cancel-fb { padding:10px 14px; background:#f3f4f6; color:#555; border:none; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; }
+  .btn-cancel-fb:hover { background:#e5e7eb; }
+  .fb-status { font-size:12px; margin-top:6px; min-height:16px; color:#6366f1; }
+</style>
+
+<button class="fab-feedback" onclick="toggleFeedback()" title="Enviar comentarios">💬</button>
+
+<div class="feedback-modal" id="feedbackModal" onclick="if(event.target===this)toggleFeedback()">
+  <div class="feedback-box">
+    <h4>💬 Comentarios</h4>
+    <p>Cuéntanos qué mejorarías o qué te gusta de Sento Run.</p>
+    <textarea id="fbText" placeholder="Escribe tu comentario…" maxlength="1000"></textarea>
+    <div class="feedback-actions">
+      <button class="btn-cancel-fb" onclick="toggleFeedback()">Cancelar</button>
+      <button class="btn-send-fb" id="fbSendBtn" onclick="sendFeedback()">Enviar</button>
+    </div>
+    <div class="fb-status" id="fbStatus"></div>
+  </div>
+</div>
+
+<script>
+function toggleFeedback() {
+  const m = document.getElementById('feedbackModal');
+  m.classList.toggle('open');
+  if (m.classList.contains('open')) {
+    document.getElementById('fbText').focus();
+    document.getElementById('fbStatus').textContent = '';
+  }
+}
+async function sendFeedback() {
+  const text = document.getElementById('fbText').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('fbSendBtn');
+  const status = document.getElementById('fbStatus');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  try {
+    const resp = await fetch('/feedback', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({text})
+    });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      status.textContent = '✅ ¡Gracias por tu comentario!';
+      document.getElementById('fbText').value = '';
+      setTimeout(toggleFeedback, 1500);
+    } else {
+      status.textContent = '❌ ' + (data.error || 'Error al enviar');
+    }
+  } catch(e) {
+    status.textContent = '❌ Error de conexión';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Enviar';
+}
+</script>
+{% endif %}
+
+<!-- MODAL PROGRESO SEMANAL -->
+<div id="weeklySummaryModal" onclick="if(event.target===this)closeWeeklySummaryModal()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto;">
+  <div style="background:white;border-radius:16px;width:100%;max-width:900px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #e5e7eb;background:#f8f9fa;">
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#1a1a2e;">📊 Mi Progreso Semanal</div>
+        <div style="font-size:12px;color:#999;margin-top:2px;">Últimas semanas de entrenamiento</div>
+      </div>
+      <button onclick="closeWeeklySummaryModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1;">✕</button>
+    </div>
+    <div id="weeklySummaryContent" style="padding:20px;overflow-x:auto;">
+      <div style="text-align:center;padding:40px;color:#aaa;">Cargando…</div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #weeklySummaryModal.open { display:flex; }
+  .ws-table { width:100%;border-collapse:collapse;font-size:13px;min-width:600px; }
+  .ws-table th { background:#f8f9fa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:#666;padding:8px 10px;text-align:center;border-bottom:1px solid #e5e7eb;white-space:nowrap; }
+  .ws-table th.ws-label-col { text-align:left;min-width:110px; }
+  .ws-table td { padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:center;white-space:nowrap;font-size:12px; }
+  .ws-table td.ws-label { text-align:left;font-weight:600;color:#444;background:#fafbff;font-size:12px; }
+  .ws-table .ws-cur { background:#f0f9ff; }
+  .ws-chip { display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600; }
+  .ws-green { background:#dcfce7;color:#166534; }
+  .ws-yellow { background:#fef9c3;color:#854d0e; }
+  .ws-red { background:#fee2e2;color:#991b1b; }
+  .ws-blue { background:#dbeafe;color:#1d4ed8; }
+  .ws-gray { color:#d1d5db;font-size:11px; }
+  .ws-bar-wrap { display:flex;align-items:center;gap:5px;justify-content:center; }
+  .ws-bar { height:12px;border-radius:3px;background:linear-gradient(90deg,#6366f1,#8b5cf6);min-width:2px; }
+</style>
+
+<script>
+function openWeeklySummaryModal() {
+  const modal = document.getElementById('weeklySummaryModal');
+  modal.classList.add('open');
+  modal.style.display = 'flex';
+  loadWeeklySummaries();
+}
+function closeWeeklySummaryModal() {
+  const modal = document.getElementById('weeklySummaryModal');
+  modal.classList.remove('open');
+  modal.style.display = 'none';
+}
+
+async function loadWeeklySummaries() {
+  const content = document.getElementById('weeklySummaryContent');
+  content.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">Cargando…</div>';
+  try {
+    const resp = await fetch('/weekly-summaries');
+    const data = await resp.json();
+    const weeks = (data.weeks || []).slice(-12).reverse(); // last 12, most recent first
+    if (!weeks.length) {
+      content.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">Sin datos disponibles aún. Los resúmenes se generan automáticamente al recargar tus datos.</div>';
+      return;
+    }
+    const maxKm = Math.max(...weeks.map(w => w.total_km || 0), 1);
+
+    function chip(val, green, yellow) {
+      if (val === null || val === undefined || val === '') return '<span class="ws-gray">—</span>';
+      let cls = 'ws-gray';
+      if (val >= green) cls = 'ws-green';
+      else if (val >= yellow) cls = 'ws-yellow';
+      else cls = 'ws-red';
+      return `<span class="ws-chip ${cls}">${val}</span>`;
+    }
+    function plain(val, suffix) {
+      return (val !== null && val !== undefined && val !== '') ? `<span style="color:#555">${val}${suffix||''}</span>` : '<span class="ws-gray">—</span>';
+    }
+
+    const isLast = (i) => i === 0;
+    const colCls = (i) => isLast(i) ? ' class="ws-cur"' : '';
+    const thCls = (i) => isLast(i) ? ' style="background:#e0f2fe;"' : '';
+
+    let html = '<table class="ws-table"><thead><tr>';
+    html += '<th class="ws-label-col">Métrica</th>';
+    weeks.forEach((w, i) => {
+      html += `<th${thCls(i)}><span style="font-size:11px;font-weight:700;color:#333;">${w.week_start ? w.week_start.slice(5) : ''}</span><br><span style="font-size:10px;font-weight:400;color:#aaa;">→ ${w.week_end ? w.week_end.slice(5) : ''}</span></th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    // Km row with bar
+    html += '<tr><td class="ws-label">🏃 Km totales</td>';
+    weeks.forEach((w, i) => {
+      const km = w.total_km || 0;
+      const barW = Math.max(Math.round((km / maxKm) * 56), 2);
+      html += `<td${colCls(i)}><div class="ws-bar-wrap"><div class="ws-bar" style="width:${barW}px"></div><span style="font-size:12px;font-weight:700;color:#1a1a2e;min-width:28px">${km}</span></div></td>`;
+    });
+    html += '</tr>';
+
+    // Sessions
+    html += '<tr><td class="ws-label">📅 Sesiones</td>';
+    weeks.forEach((w, i) => {
+      const r = w.run_count || 0, s = w.strength_count || 0;
+      html += `<td${colCls(i)} style="font-size:12px;color:#555;">${r ? r+'🏃' : ''}${s ? ' '+s+'💪' : ''}${!r && !s ? '<span class="ws-gray">—</span>' : ''}</td>`;
+    });
+    html += '</tr>';
+
+    // Fastest pace
+    html += '<tr><td class="ws-label">⚡ Ritmo rápido</td>';
+    weeks.forEach((w, i) => {
+      html += `<td${colCls(i)}>${w.fastest_pace ? `<span class="ws-chip ws-blue">${w.fastest_pace}</span>` : '<span class="ws-gray">—</span>'}</td>`;
+    });
+    html += '</tr>';
+
+    // Avg pace
+    html += '<tr><td class="ws-label">🕐 Ritmo prom</td>';
+    weeks.forEach((w, i) => {
+      html += `<td${colCls(i)}>${plain(w.avg_pace, ' /km')}</td>`;
+    });
+    html += '</tr>';
+
+    // VO2
+    html += '<tr><td class="ws-label">💨 VO2 prom</td>';
+    weeks.forEach((w, i) => { html += `<td${colCls(i)}>${chip(w.avg_vo2, 50, 42)}</td>`; });
+    html += '</tr>';
+
+    // Stride
+    html += '<tr><td class="ws-label">👣 Zancada</td>';
+    weeks.forEach((w, i) => { html += `<td${colCls(i)}>${plain(w.avg_stride_cm, ' cm')}</td>`; });
+    html += '</tr>';
+
+    // Elevation
+    html += '<tr><td class="ws-label">⛰ Desnivel</td>';
+    weeks.forEach((w, i) => { html += `<td${colCls(i)}>${plain(w.total_elevation_m, ' m')}</td>`; });
+    html += '</tr>';
+
+    // Balance
+    html += '<tr><td class="ws-label">⚖️ Pisada</td>';
+    weeks.forEach((w, i) => {
+      const b = w.avg_balance_left_pct;
+      html += `<td${colCls(i)} style="font-size:11px;color:#555;">${b ? b+'%I / '+Math.round((100-b)*10)/10+'%D' : '<span class="ws-gray">—</span>'}</td>`;
+    });
+    html += '</tr>';
+
+    // HR
+    html += '<tr><td class="ws-label">❤️ FC prom</td>';
+    weeks.forEach((w, i) => {
+      const v = w.avg_hr;
+      html += `<td${colCls(i)}>${v ? `<span class="ws-chip ${v<145?'ws-green':v<160?'ws-yellow':'ws-red'}">${v} bpm</span>` : '<span class="ws-gray">—</span>'}</td>`;
+    });
+    html += '</tr>';
+
+    // Body battery
+    html += '<tr><td class="ws-label">🔋 Body Battery</td>';
+    weeks.forEach((w, i) => {
+      const v = w.avg_bb;
+      html += `<td${colCls(i)}>${v ? `<span class="ws-chip ${v>=70?'ws-green':v>=45?'ws-yellow':'ws-red'}">${v}%</span>` : '<span class="ws-gray">—</span>'}</td>`;
+    });
+    html += '</tr>';
+
+    // Sleep
+    html += '<tr><td class="ws-label">😴 Sueño prom</td>';
+    weeks.forEach((w, i) => {
+      const v = w.avg_sleep_h;
+      html += `<td${colCls(i)}>${v ? `<span class="ws-chip ${v>=7?'ws-green':v>=5.5?'ws-yellow':'ws-red'}">${v}h</span>` : '<span class="ws-gray">—</span>'}</td>`;
+    });
+    html += '</tr>';
+
+    html += '</tbody></table>';
+    html += '<div style="font-size:11px;color:#aaa;margin-top:10px;text-align:right;">Columna izquierda = más reciente · Columna azul = semana actual</div>';
+    content.innerHTML = html;
+  } catch(e) {
+    content.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Error al cargar los datos: ' + e.message + '</div>';
+  }
+}
 </script>
 </body>
 </html>

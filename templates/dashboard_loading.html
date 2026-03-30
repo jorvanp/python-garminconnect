@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sento Run — Cargando</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    padding: 24px;
+  }
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 40px 36px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    backdrop-filter: blur(12px);
+  }
+  .logo { font-size: 40px; margin-bottom: 16px; }
+  .title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 32px; line-height: 1.5; }
+  .progress-track {
+    background: rgba(255,255,255,0.12);
+    border-radius: 10px;
+    height: 10px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a855f7);
+    border-radius: 10px;
+    width: 0%;
+    transition: width 0.6s ease;
+  }
+  .progress-msg { font-size: 13px; color: rgba(255,255,255,0.55); min-height: 20px; margin-bottom: 28px; }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .dots span {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 50%;
+    margin: 0 3px;
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-8px); } }
+  .error-box {
+    display: none;
+    background: rgba(239,68,68,0.15);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 13px;
+    color: #fca5a5;
+    margin-bottom: 16px;
+  }
+  .btn-retry {
+    display: none;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 8px;
+  }
+  .btn-retry:hover { background: rgba(255,255,255,0.18); }
+  .btn-cached {
+    display: none;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.45);
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px 0;
+  }
+  .btn-cached:hover { color: rgba(255,255,255,0.75); }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">🏃</div>
+  <div class="title">Hola, {{ user_name }}</div>
+  <div class="subtitle" id="subtitle">Estamos actualizando tus datos del día.<br>Esto tarda menos de un minuto.</div>
+
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+  <div class="progress-msg" id="progressMsg">
+    <div class="dots"><span></span><span></span><span></span></div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+  <button class="btn-retry" id="retryBtn" onclick="location.reload()">🔄 Reintentar</button>
+  <button class="btn-cached" id="cachedBtn" onclick="window.location.href='/?cached=1'">Ver últimos datos disponibles</button>
+</div>
+
+<script>
+const fill = document.getElementById('progressFill');
+const msg  = document.getElementById('progressMsg');
+const errBox = document.getElementById('errorBox');
+const retryBtn = document.getElementById('retryBtn');
+const cachedBtn = document.getElementById('cachedBtn');
+
+let pollCount = 0;
+const START_TIME = Date.now();
+const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
+function showError(text, showCached) {
+  errBox.textContent = text;
+  errBox.style.display = 'block';
+  retryBtn.style.display = 'inline-block';
+  if (showCached) cachedBtn.style.display = 'inline-block';
+  msg.textContent = '';
+}
+
+async function poll() {
+  pollCount++;
+
+  // Hard timeout: if 3 minutes pass with no resolution, offer escape hatch
+  if (Date.now() - START_TIME > TIMEOUT_MS) {
+    showError('La actualización está tardando demasiado. Puede haber un problema de conexión con Garmin.', true);
+    return;
+  }
+
+  try {
+    const res = await fetch('/prescription/status');
+    if (!res.ok) { schedule(); return; }
+    const data = await res.json();
+
+    if (data.pct > 0 && data.pct !== -1) {
+      fill.style.width = Math.min(data.pct, 99) + '%';
+    } else if (data.refreshing || pollCount > 1) {
+      const fake = Math.min(5 + pollCount * 3, 60);
+      fill.style.width = fake + '%';
+    }
+    if (data.msg) msg.innerHTML = data.msg;
+
+    if (data.ready) {
+      fill.style.width = '100%';
+      fill.style.background = '#22c55e';
+      msg.textContent = '¡Listo! Cargando tu dashboard…';
+      setTimeout(() => { window.location.href = '/'; }, 700);
+      return;
+    }
+
+    if (data.pct === -1) {
+      const isReconnect = data.needs_reconnect || (data.msg && data.msg.toLowerCase().includes('reconecta'));
+      showError(data.msg || 'Ocurrió un error al actualizar. Intenta de nuevo.', true);
+      if (isReconnect) {
+        retryBtn.textContent = '🔌 Reconectar Garmin';
+        retryBtn.onclick = () => { window.location.href = '/garmin-reconnect'; };
+      }
+      return;
+    }
+
+    schedule();
+  } catch(e) {
+    schedule();
+  }
+}
+
+function schedule() {
+  const delay = pollCount < 4 ? 2000 : 3000;
+  setTimeout(poll, delay);
+}
+
+setTimeout(poll, 1500);
+</script>
+</body>
+</html>

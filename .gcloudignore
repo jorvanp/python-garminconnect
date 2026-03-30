@@ -1,0 +1,33 @@
+# Archivos de la librería garminconnect (instalada via pip, no se necesita fuente local)
+package.json
+package-lock.json
+pyproject.toml
+pdm.lock
+garminconnect/
+tests/
+test_data/
+docs/
+demo.py
+example.py
+analyze_training.py
+
+# Datos locales
+training_data.json
+training_data_monthly.json
+your_data/
+Sento/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Git
+.git/
+.gitignore
+
+# Entorno local
+.env
+.venv/
+venv/

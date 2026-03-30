@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reglas de IA — Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
+  .navbar { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar-brand { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+  .navbar-badge { background: #ef4444; color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 14px; transition: color 0.2s; }
+  .navbar-links a:hover { color: white; }
+  .container { max-width: 820px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 22px; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 28px; line-height: 1.6; }
+  /* Add rule form */
+  .add-form { background: white; border-radius: 14px; padding: 22px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 28px; }
+  .add-form h2 { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+  textarea.rule-input { width: 100%; border: 1px solid #e0e0e0; border-radius: 10px; padding: 12px 14px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 80px; outline: none; transition: border 0.2s; line-height: 1.6; }
+  textarea.rule-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .char-hint { font-size: 12px; color: #aaa; text-align: right; margin-top: 4px; }
+  .btn-add { margin-top: 10px; padding: 10px 20px; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+  .btn-add:hover { opacity: 0.9; }
+  .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* Rules list */
+  .rules-list { display: flex; flex-direction: column; gap: 12px; }
+  .rule-card { background: white; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; gap: 14px; align-items: flex-start; transition: opacity 0.2s; }
+  .rule-card.inactive { opacity: 0.5; }
+  .rule-number { width: 28px; height: 28px; border-radius: 50%; background: #e8f0fe; color: #1a73e8; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .rule-body { flex: 1; }
+  .rule-text { font-size: 14px; color: #333; line-height: 1.6; }
+  .rule-text-edit { display: none; width: 100%; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 60px; outline: none; }
+  .rule-text-edit:focus { border-color: #6366f1; }
+  .rule-meta { font-size: 12px; color: #aaa; margin-top: 4px; }
+  .rule-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
+  .btn-icon { width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; }
+  .btn-toggle-on  { background: #dcfce7; color: #166534; }
+  .btn-toggle-on:hover  { background: #bbf7d0; }
+  .btn-toggle-off { background: #f3f4f6; color: #9ca3af; }
+  .btn-toggle-off:hover { background: #e5e7eb; }
+  .btn-edit   { background: #eff6ff; color: #1d4ed8; }
+  .btn-edit:hover   { background: #dbeafe; }
+  .btn-save   { background: #f0fdf4; color: #16a34a; display: none; }
+  .btn-save:hover   { background: #dcfce7; }
+  .btn-delete { background: #fef2f2; color: #dc2626; }
+  .btn-delete:hover { background: #fee2e2; }
+  .empty-state { text-align: center; padding: 48px; color: #aaa; font-size: 15px; }
+  .tip { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #78350f; line-height: 1.6; margin-bottom: 24px; }
+  .tip strong { color: #b45309; }
+  .status-bar { font-size: 13px; color: #6366f1; min-height: 20px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">
+    🏃 Sento Run
+    <span class="navbar-badge">ADMIN</span>
+  </div>
+  <div class="navbar-links">
+    <a href="/admin/">← Panel admin</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>🧠 Reglas de interpretación IA</h1>
+  <p class="subtitle">Estas reglas se inyectan en el contexto de la IA para <strong>todos los usuarios</strong>. Úsalas para corregir interpretaciones incorrectas, definir comportamientos esperados o añadir contexto que la IA no puede inferir sola.</p>
+
+  <div class="tip">
+    💡 <strong>Ejemplos de reglas útiles:</strong><br>
+    • "Si las horas de sueño reportadas son 0, no interpretar como privación de sueño crítica. El usuario probablemente no duerme con el reloj."<br>
+    • "Un Body Battery por debajo de 20 al despertar debe interpretarse como señal de recuperación incompleta aunque el sueño parezca normal."<br>
+    • "Los usuarios de esta plataforma son corredores recreativos o amateur, no atletas de élite."
+  </div>
+
+  <!-- Add form -->
+  <div class="add-form">
+    <h2>➕ Nueva regla</h2>
+    <textarea class="rule-input" id="newRuleText" placeholder="Escribe la regla o contexto que quieres que la IA considere siempre…" maxlength="500" oninput="updateCharCount(this, 'newCharCount')"></textarea>
+    <div class="char-hint" id="newCharCount">0 / 500</div>
+    <button class="btn-add" id="addBtn" onclick="addRule()">Agregar regla</button>
+    <div class="status-bar" id="addStatus"></div>
+  </div>
+
+  <!-- Rules list -->
+  <div class="rules-list" id="rulesList">
+    {% if rules %}
+      {% for rule in rules %}
+      <div class="rule-card {% if not rule.active %}inactive{% endif %}" id="card-{{ rule.id }}">
+        <div class="rule-number">{{ loop.index }}</div>
+        <div class="rule-body">
+          <div class="rule-text" id="text-{{ rule.id }}">{{ rule.text }}</div>
+          <textarea class="rule-text-edit" id="edit-{{ rule.id }}" maxlength="500">{{ rule.text }}</textarea>
+          <div class="rule-meta">{% if rule.active %}Activa{% else %}Inactiva (no se aplica){% endif %}</div>
+        </div>
+        <div class="rule-actions">
+          <button class="btn-icon {% if rule.active %}btn-toggle-on{% else %}btn-toggle-off{% endif %}"
+                  id="toggle-{{ rule.id }}"
+                  onclick="toggleRule('{{ rule.id }}', {{ 'true' if rule.active else 'false' }})"
+                  title="{% if rule.active %}Desactivar{% else %}Activar{% endif %}">
+            {% if rule.active %}✓{% else %}○{% endif %}
+          </button>
+          <button class="btn-icon btn-edit" id="editBtn-{{ rule.id }}" onclick="startEdit('{{ rule.id }}')" title="Editar">✏️</button>
+          <button class="btn-icon btn-save" id="saveBtn-{{ rule.id }}" onclick="saveEdit('{{ rule.id }}')" title="Guardar">💾</button>
+          <button class="btn-icon btn-delete" onclick="deleteRule('{{ rule.id }}')" title="Eliminar">🗑</button>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state" id="emptyState">No hay reglas definidas aún. Agrega la primera arriba.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function updateCharCount(el, countId) {
+  document.getElementById(countId).textContent = el.value.length + ' / 500';
+}
+
+async function addRule() {
+  const text = document.getElementById('newRuleText').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('addBtn');
+  const status = document.getElementById('addStatus');
+  btn.disabled = true;
+  status.textContent = 'Guardando…';
+
+  const resp = await fetch('/admin/coaching-rules', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text})
+  });
+  const data = await resp.json();
+
+  if (data.status === 'ok') {
+    document.getElementById('newRuleText').value = '';
+    document.getElementById('newCharCount').textContent = '0 / 500';
+    status.textContent = '✅ Regla agregada.';
+    renderRules(data.rules);
+    setTimeout(() => status.textContent = '', 2000);
+  } else {
+    status.textContent = '❌ ' + (data.error || 'Error');
+  }
+  btn.disabled = false;
+}
+
+async function toggleRule(id, currentActive) {
+  const resp = await fetch('/admin/coaching-rules/' + id, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({active: !currentActive})
+  });
+  const data = await resp.json();
+  if (data.status === 'ok') renderRules(data.rules);
+}
+
+function startEdit(id) {
+  document.getElementById('text-' + id).style.display = 'none';
+  document.getElementById('edit-' + id).style.display = 'block';
+  document.getElementById('editBtn-' + id).style.display = 'none';
+  document.getElementById('saveBtn-' + id).style.display = 'flex';
+  document.getElementById('edit-' + id).focus();
+}
+
+async function saveEdit(id) {
+  const text = document.getElementById('edit-' + id).value.trim();
+  if (!text) return;
+  const resp = await fetch('/admin/coaching-rules/' + id, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text})
+  });
+  const data = await resp.json();
+  if (data.status === 'ok') renderRules(data.rules);
+}
+
+async function deleteRule(id) {
+  if (!confirm('¿Eliminar esta regla?')) return;
+  const resp = await fetch('/admin/coaching-rules/' + id, {method: 'DELETE'});
+  const data = await resp.json();
+  if (data.status === 'ok') renderRules(data.rules);
+}
+
+function renderRules(rules) {
+  const list = document.getElementById('rulesList');
+  if (!rules || rules.length === 0) {
+    list.innerHTML = '<div class="empty-state">No hay reglas definidas aún. Agrega la primera arriba.</div>';
+    return;
+  }
+  list.innerHTML = rules.map((r, i) => `
+    <div class="rule-card ${r.active ? '' : 'inactive'}" id="card-${r.id}">
+      <div class="rule-number">${i + 1}</div>
+      <div class="rule-body">
+        <div class="rule-text" id="text-${r.id}">${escHtml(r.text)}</div>
+        <textarea class="rule-text-edit" id="edit-${r.id}" maxlength="500">${escHtml(r.text)}</textarea>
+        <div class="rule-meta">${r.active ? 'Activa' : 'Inactiva (no se aplica)'}</div>
+      </div>
+      <div class="rule-actions">
+        <button class="btn-icon ${r.active ? 'btn-toggle-on' : 'btn-toggle-off'}"
+                id="toggle-${r.id}"
+                onclick="toggleRule('${r.id}', ${r.active})"
+                title="${r.active ? 'Desactivar' : 'Activar'}">
+          ${r.active ? '✓' : '○'}
+        </button>
+        <button class="btn-icon btn-edit" id="editBtn-${r.id}" onclick="startEdit('${r.id}')" title="Editar">✏️</button>
+        <button class="btn-icon btn-save" id="saveBtn-${r.id}" onclick="saveEdit('${r.id}')" title="Guardar">💾</button>
+        <button class="btn-icon btn-delete" onclick="deleteRule('${r.id}')" title="Eliminar">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

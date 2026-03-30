@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resúmenes Semanales — Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
+  .navbar { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar-brand { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+  .navbar-badge { background: #ef4444; color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .navbar-links { display: flex; gap: 16px; align-items: center; font-size: 14px; }
+  .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; }
+  .navbar-links a:hover { color: white; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 28px 16px; }
+  h1 { font-size: 24px; font-weight: 800; color: #1a1a2e; margin-bottom: 4px; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 28px; }
+
+  /* User section */
+  .user-section { background: white; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 28px; overflow: hidden; }
+  .user-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 2px solid #f0f0f0; background: #fafbff; }
+  .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#6366f1,#8b5cf6); display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .user-name { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+  .user-email { font-size: 12px; color: #999; }
+  .no-data { padding: 20px; font-size: 13px; color: #bbb; text-align: center; }
+
+  /* Weekly table */
+  .week-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .week-table th { background: #f8f9fa; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #666; padding: 9px 12px; text-align: center; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+  .week-table th.metric-col { text-align: left; }
+  .week-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; text-align: center; white-space: nowrap; }
+  .week-table td.metric-label { text-align: left; font-weight: 600; color: #444; font-size: 12px; background: #fafbff; white-space: nowrap; }
+  .week-table tr:last-child td { border-bottom: none; }
+
+  /* Metric chips */
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .chip-green { background: #dcfce7; color: #166534; }
+  .chip-yellow { background: #fef9c3; color: #854d0e; }
+  .chip-red { background: #fee2e2; color: #991b1b; }
+  .chip-blue { background: #dbeafe; color: #1d4ed8; }
+  .chip-gray { background: #f3f4f6; color: #6b7280; }
+
+  /* Sparkline bar for km */
+  .km-bar-wrap { display: flex; align-items: center; gap: 6px; justify-content: center; }
+  .km-bar { height: 14px; border-radius: 4px; background: linear-gradient(90deg,#6366f1,#8b5cf6); min-width: 2px; }
+  .km-val { font-size: 12px; font-weight: 700; color: #1a1a2e; min-width: 34px; }
+
+  /* Trend arrow */
+  .trend-up { color: #22c55e; font-size: 13px; }
+  .trend-down { color: #ef4444; font-size: 13px; }
+  .trend-flat { color: #94a3b8; font-size: 13px; }
+
+  .empty-cell { color: #d1d5db; font-size: 11px; }
+
+  /* Legend */
+  .legend { display: flex; gap: 16px; padding: 12px 20px; background: #f8f9fa; border-top: 1px solid #e5e7eb; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+
+  /* Week header: show date range */
+  .week-label { font-size: 11px; color: #888; display: block; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .week-label-main { font-size: 12px; font-weight: 700; color: #333; }
+  .current-week { background: #f0f9ff !important; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">
+    🏃 Sento Run
+    <span class="navbar-badge">ADMIN</span>
+  </div>
+  <div class="navbar-links">
+    <a href="/admin">← Panel</a>
+    <a href="/admin/feedback">💬 Feedback</a>
+    <a href="/admin/coaching-rules">🧠 Reglas IA</a>
+    <a href="/">Mi dashboard</a>
+    <a href="/auth/logout">Cerrar sesión</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>📊 Resúmenes Semanales por Corredor</h1>
+  <p class="subtitle">Últimas {{ num_weeks }} semanas · Cada columna es una semana (más reciente a la derecha)</p>
+
+  {% if not user_data %}
+    <div style="text-align:center;padding:60px;color:#aaa;font-size:15px;">No hay usuarios con Garmin conectado y datos disponibles.</div>
+  {% endif %}
+
+  {% for u in user_data %}
+  <div class="user-section">
+    <div class="user-header">
+      <span class="user-avatar">{{ (u.name or '?')[0].upper() }}</span>
+      <div>
+        <div class="user-name">{{ u.name }}</div>
+        <div class="user-email">{{ u.email }}</div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <button onclick="recompute('{{ u.uid }}', this)"
+          style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;"
+          title="Recalcula los resúmenes desde los datos ya almacenados en GCS, sin recargar Garmin">
+          🔄 Recalcular
+        </button>
+        <a href="/admin/user/{{ u.uid }}" style="font-size:12px;color:#6366f1;text-decoration:none;font-weight:600;">Ver dashboard →</a>
+      </div>
+    </div>
+
+    {% if not u.weeks %}
+      <div class="no-data">Sin resúmenes semanales. Recarga los datos del usuario primero.</div>
+    {% else %}
+
+    {# Compute max_km for bar scaling #}
+    {% set max_km = namespace(val=1.0) %}
+    {% for w in u.weeks %}
+      {% if w.total_km and w.total_km > max_km.val %}
+        {% set max_km.val = w.total_km %}
+      {% endif %}
+    {% endfor %}
+
+    <table class="week-table">
+      <thead>
+        <tr>
+          <th class="metric-col" style="width:130px;">Métrica</th>
+          {% for w in u.weeks %}
+          <th {% if loop.last %}class="current-week"{% endif %}>
+            <span class="week-label-main">{{ w.week_start[5:] }}</span>
+            <span class="week-label">→ {{ w.week_end[5:] }}</span>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+
+        {# Km totales #}
+        <tr>
+          <td class="metric-label">🏃 Km totales</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %}>
+            {% if w.total_km %}
+              <div class="km-bar-wrap">
+                <div class="km-bar" style="width:{{ [(w.total_km / max_km.val * 60)|int, 2]|max }}px;"></div>
+                <span class="km-val">{{ w.total_km }}</span>
+              </div>
+            {% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# Carreras y fuerza #}
+        <tr>
+          <td class="metric-label">📅 Sesiones</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %} style="font-size:12px;color:#555;">
+            {% if w.run_count or w.strength_count %}
+              {{ w.run_count }}🏃{% if w.strength_count %} + {{ w.strength_count }}💪{% endif %}
+            {% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# Ritmo más rápido #}
+        <tr>
+          <td class="metric-label">⚡ Ritmo más rápido</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %}>
+            {% if w.fastest_pace %}
+              <span class="chip chip-blue">{{ w.fastest_pace }}</span>
+            {% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# Ritmo promedio #}
+        <tr>
+          <td class="metric-label">🕐 Ritmo promedio</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %} style="font-size:12px;color:#555;">
+            {% if w.avg_pace %}{{ w.avg_pace }} /km{% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# VO2 Max #}
+        <tr>
+          <td class="metric-label">💨 VO2 prom</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %}>
+            {% if w.avg_vo2 %}
+              <span class="chip {% if w.avg_vo2 >= 50 %}chip-green{% elif w.avg_vo2 >= 42 %}chip-yellow{% else %}chip-gray{% endif %}">
+                {{ w.avg_vo2 }}
+              </span>
+            {% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# Zancada #}
+        <tr>
+          <td class="metric-label">👣 Zancada prom</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %} style="font-size:12px;color:#555;">
+            {% if w.avg_stride_cm %}{{ w.avg_stride_cm }} cm{% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# Desnivel #}
+        <tr>
+          <td class="metric-label">⛰ Desnivel</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %} style="font-size:12px;color:#555;">
+            {% if w.total_elevation_m %}{{ w.total_elevation_m }} m{% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# Pisada (balance) #}
+        <tr>
+          <td class="metric-label">⚖️ Pisada</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %} style="font-size:11px;color:#555;">
+            {% if w.avg_balance_left_pct %}
+              {{ w.avg_balance_left_pct }}%L / {{ (100 - w.avg_balance_left_pct)|round(1) }}%R
+            {% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# FC promedio #}
+        <tr>
+          <td class="metric-label">❤️ FC promedio</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %}>
+            {% if w.avg_hr %}
+              <span class="chip {% if w.avg_hr < 145 %}chip-green{% elif w.avg_hr < 160 %}chip-yellow{% else %}chip-red{% endif %}">
+                {{ w.avg_hr }} bpm
+              </span>
+            {% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# Body Battery al despertar #}
+        <tr>
+          <td class="metric-label">🔋 Body Battery</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %}>
+            {% if w.avg_bb is not none and w.avg_bb %}
+              <span class="chip {% if w.avg_bb >= 70 %}chip-green{% elif w.avg_bb >= 45 %}chip-yellow{% else %}chip-red{% endif %}">
+                {{ w.avg_bb }}%
+              </span>
+            {% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        {# Sueño promedio #}
+        <tr>
+          <td class="metric-label">😴 Sueño prom</td>
+          {% for w in u.weeks %}
+          <td {% if loop.last %}class="current-week"{% endif %}>
+            {% if w.avg_sleep_h %}
+              <span class="chip {% if w.avg_sleep_h >= 7 %}chip-green{% elif w.avg_sleep_h >= 5.5 %}chip-yellow{% else %}chip-red{% endif %}">
+                {{ w.avg_sleep_h }}h
+              </span>
+            {% else %}<span class="empty-cell">—</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+      </tbody>
+    </table>
+
+    <div class="legend">
+      <div class="legend-item"><span class="chip chip-green" style="padding:1px 6px;">Verde</span> Óptimo</div>
+      <div class="legend-item"><span class="chip chip-yellow" style="padding:1px 6px;">Amarillo</span> Atención</div>
+      <div class="legend-item"><span class="chip chip-red" style="padding:1px 6px;">Rojo</span> Alerta</div>
+      <div class="legend-item" style="margin-left:auto;color:#aaa;">Columna más reciente sombreada en azul claro</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+</div>
+<script>
+function recompute(uid, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Calculando...';
+  fetch('/admin/user/' + uid + '/recompute-summaries', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        btn.textContent = '✓ Listo (' + data.weeks + ' semanas)';
+        btn.style.background = '#dcfce7';
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        btn.textContent = '❌ ' + (data.error || 'Error');
+        btn.style.background = '#fee2e2';
+        btn.style.color = '#991b1b';
+        setTimeout(() => { btn.textContent = orig; btn.disabled = false; btn.style = ''; }, 4000);
+      }
+    })
+    .catch(() => {
+      btn.textContent = '❌ Error de conexión';
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 4000);
+    });
+}
+</script>
+</body>
+</html>

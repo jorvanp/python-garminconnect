@@ -93,3 +93,27 @@ class GCSHelper:
          except Exception as e:
               logger.error(f"Error saving JSON {blob_name}: {e}")
               return False
+
+    def delete_directory(self, gcs_prefix: str) -> int:
+        """Deletes all blobs under a GCS prefix. Returns count deleted."""
+        if not self.bucket:
+            return 0
+        try:
+            blobs = list(self.bucket.list_blobs(prefix=gcs_prefix))
+            for blob in blobs:
+                blob.delete()
+            return len(blobs)
+        except Exception as e:
+            logger.error(f"Error deleting GCS prefix {gcs_prefix}: {e}")
+            return 0
+
+    def upload_bytes(self, blob_name: str, data: bytes, content_type: str) -> bool:
+        """Uploads raw bytes to GCS."""
+        if not self.bucket: return False
+        try:
+            blob = self.bucket.blob(blob_name)
+            blob.upload_from_string(data, content_type=content_type)
+            return True
+        except Exception as e:
+            logger.error(f"Error uploading bytes to {blob_name}: {e}")
+            return False

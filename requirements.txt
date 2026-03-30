@@ -2,6 +2,9 @@ garminconnect
 Flask
 waitress
 google-cloud-storage
+google-cloud-firestore
 gunicorn
 python-dotenv
-google-generativeai
+google-genai
+authlib
+requests
