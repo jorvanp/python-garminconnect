@@ -1,81 +1,269 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sento Run — Iniciar sesión</title>
+<title>Sento Run — {{ _('Iniciar sesión') }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-  .card { background: #fff; border-radius: 20px; padding: 48px 40px; max-width: 420px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,0.10); text-align: center; }
-  .logo { width: 64px; height: 64px; background: linear-gradient(135deg, #1a1a2e, #0f3460); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; }
-  .logo svg { width: 34px; height: 34px; fill: white; }
-  h1 { font-size: 24px; font-weight: 800; color: #1a1a2e; margin-bottom: 8px; }
-  .subtitle { font-size: 14px; color: #666; margin-bottom: 32px; line-height: 1.6; }
-  .btn-google { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 2px solid #e0e0e0; border-radius: 12px; padding: 14px 24px; font-size: 15px; font-weight: 600; color: #333; cursor: pointer; text-decoration: none; transition: all 0.2s; width: 100%; justify-content: center; }
-  .btn-google:hover { border-color: #1a73e8; background: #f8f9ff; box-shadow: 0 2px 12px rgba(26,115,232,0.15); }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a14; color: white; overflow-x: hidden; }
+
+  /* ── NAVBAR ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(10,10,20,0.95), transparent);
+    backdrop-filter: blur(4px);
+  }
+  .nav-brand {
+    font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none; color: white;
+  }
+  .btn-back {
+    background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.7);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 30px; padding: 8px 18px; font-size: 13px; font-weight: 600;
+    text-decoration: none; display: inline-block; transition: background 0.2s;
+  }
+  .btn-back:hover { background: rgba(255,255,255,0.12); color: white; }
+
+  /* ── BACKGROUND ── */
+  .track-lines {
+    position: absolute; inset: 0; overflow: hidden; opacity: 0.06; pointer-events: none;
+  }
+  .track-lines::before {
+    content: ''; position: absolute; bottom: -20%; left: -20%; right: -20%;
+    height: 160%; border: 2px solid #f97316; border-radius: 50%;
+    animation: pulse-track 6s ease-in-out infinite;
+  }
+  .track-lines::after {
+    content: ''; position: absolute; bottom: -35%; left: -35%; right: -35%;
+    height: 200%; border: 2px solid #22c55e; border-radius: 50%;
+    animation: pulse-track 6s ease-in-out infinite 1.5s;
+  }
+  @keyframes pulse-track {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.04); opacity: 1; }
+  }
+
+  /* ── LOGIN SECTION ── */
+  .login-section {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    position: relative;
+    background: radial-gradient(ellipse at 50% 45%, #1a1a40 0%, #0a0a14 65%);
+    padding: 100px 24px 48px;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px; padding: 44px 36px;
+    max-width: 420px; width: 100%;
+    backdrop-filter: blur(12px);
+    text-align: center;
+    position: relative; z-index: 2;
+  }
+
+  .logo {
+    width: 60px; height: 60px;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: 20px; font-size: 26px;
+  }
+
+  h1 { font-size: 26px; font-weight: 900; margin-bottom: 8px; letter-spacing: -0.5px; }
+  .subtitle { font-size: 14px; color: rgba(255,255,255,0.55); margin-bottom: 28px; line-height: 1.6; }
+
+  /* ── LICENSE BOX ── */
+  .license-box {
+    margin-bottom: 20px;
+    background: rgba(249,115,22,0.1);
+    border: 1px solid rgba(249,115,22,0.25);
+    border-radius: 14px; padding: 14px 16px;
+    font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.65;
+  }
+  .license-box .license-message {
+    color: rgba(255,255,255,0.55); margin-bottom: 10px; font-size: 12px;
+  }
+  .license-count {
+    font-size: 22px; font-weight: 900; color: #22c55e; display: block; margin-bottom: 2px;
+  }
+  .license-count.full { color: #f87171; }
+  .license-sub { font-size: 12px; color: rgba(255,255,255,0.4); }
+
+  /* ── CAPACITY ERROR ── */
+  .capacity-error {
+    margin-bottom: 16px;
+    background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 12px; padding: 14px 16px;
+    font-size: 13px; color: #fca5a5; line-height: 1.6; text-align: left;
+  }
+
+  /* ── GOOGLE BUTTON ── */
+  .btn-google {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 14px; padding: 14px 24px;
+    font-size: 15px; font-weight: 700; color: white;
+    cursor: pointer; text-decoration: none; transition: all 0.2s;
+    width: 100%; justify-content: center;
+  }
+  .btn-google:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.3); transform: translateY(-1px); }
+  .btn-google:disabled, .btn-google[style*="pointer-events:none"] { opacity: 0.4; cursor: not-allowed; }
   .btn-google svg { width: 20px; height: 20px; flex-shrink: 0; }
-  .disclaimer { margin-top: 28px; font-size: 12px; color: #999; line-height: 1.6; }
-  .features { margin: 28px 0; display: flex; flex-direction: column; gap: 10px; text-align: left; }
-  .feature { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #555; }
-  .feature-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-  .privacy-box { margin-top: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #64748b; line-height: 1.7; text-align: left; }
-  .privacy-toggle { background: none; border: none; color: #0369a1; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
-  .privacy-full { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #475569; line-height: 1.8; }
-  .privacy-full h4 { font-size: 12px; font-weight: 700; color: #1e293b; margin: 10px 0 4px; }
-  .privacy-full ul { padding-left: 16px; margin: 0; }
-  .privacy-full li { margin-bottom: 3px; }
+
+  /* ── DISCLAIMER ── */
+  .disclaimer {
+    margin-top: 18px;
+    background: rgba(251,191,36,0.08);
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 10px; padding: 12px 14px;
+    font-size: 12px; color: rgba(251,191,36,0.8); line-height: 1.65; text-align: left;
+  }
+
+  /* ── SCROLL HINT (desktop) ── */
+  .scroll-hint {
+    display: none;
+    margin-top: 20px; font-size: 12px; color: rgba(255,255,255,0.3);
+    cursor: pointer; transition: color 0.2s;
+  }
+  .scroll-hint:hover { color: rgba(255,255,255,0.6); }
+  @media (min-width: 769px) { .scroll-hint { display: block; } }
+
+  /* ── PRIVACY SECTION ── */
+  .privacy-section {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 80px 24px 48px;
+    background: rgba(249,115,22,0.03);
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .privacy-card {
+    max-width: 600px; width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px; padding: 36px 32px;
+  }
+  .privacy-card h2 {
+    font-size: 20px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.3px;
+  }
+  .privacy-card .privacy-intro {
+    font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 24px; line-height: 1.6;
+  }
+  .privacy-card h4 {
+    font-size: 12px; font-weight: 800; color: #fdba74;
+    text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 6px;
+  }
+  .privacy-card h4:first-of-type { margin-top: 0; }
+  .privacy-card p, .privacy-card li {
+    font-size: 13px; color: rgba(255,255,255,0.55); line-height: 1.75;
+  }
+  .privacy-card ul { padding-left: 18px; }
+  .privacy-card li { margin-bottom: 4px; }
+  .privacy-card .consent-note {
+    margin-top: 20px; padding: 14px 16px;
+    background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 10px; font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.7;
+  }
+
+  /* Footer */
+  .privacy-section footer {
+    text-align: center; font-size: 11px; color: rgba(255,255,255,0.15);
+    margin-top: 28px;
+  }
+
+  /* ── SCROLL SNAP — desktop only ── */
+  @media (min-width: 769px) {
+    html { height: 100%; overflow: hidden; }
+    body { height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory; }
+    .login-section, .privacy-section { scroll-snap-align: start; }
+    .login-section { align-items: center; padding-top: 80px; padding-bottom: 40px; }
+  }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .card { padding: 32px 24px; }
+    .privacy-card { padding: 28px 20px; }
+  }
 </style>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<meta property="og:image" content="/static/og-image.png">
 </head>
 <body>
-<div class="card">
-  <div class="logo">
-    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-  </div>
-  <h1>Sento Run</h1>
-  <p class="subtitle">Recomendaciones personalizadas basadas en datos reales de Garmin y análisis con inteligencia artificial.<br><span style="font-size:12px;color:#999;">Requiere dispositivo y cuenta activa de Garmin Connect.</span></p>
 
-  <div class="features">
-    <div class="feature"><span class="feature-icon">📊</span><span>Métricas diarias: Body Battery, sueño, estrés y FC en reposo</span></div>
-    <div class="feature"><span class="feature-icon">🤖</span><span>Prescripción del día generada por IA según tus datos reales</span></div>
-    <div class="feature"><span class="feature-icon">🔒</span><span>Tus credenciales de Garmin nunca se almacenan, solo el token de sesión</span></div>
-  </div>
+<!-- NAVBAR -->
+<nav>
+  <a href="/" class="nav-brand"><span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento Run" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span> Sento Run</a>
+  <a href="/" class="btn-back">← {{ _('Volver') }}</a>
+</nav>
 
-  <div style="margin-bottom:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 16px;font-size:13px;color:#0c4a6e;line-height:1.6;text-align:center;">
-    {% if available > 0 %}
-      <span style="font-size:18px;font-weight:800;color:#0369a1;">{{ available }}</span>
-      <span> de <strong>{{ max_users }}</strong> licencias disponibles</span>
-    {% else %}
-      <span style="font-size:15px;font-weight:700;color:#991b1b;">0 de {{ max_users }} licencias disponibles</span>
+<!-- ── SECTION 1: LOGIN ── -->
+<section class="login-section">
+  <div class="track-lines"></div>
+
+  <div class="card">
+    <div style="display:inline-block;background:white;border-radius:20px;padding:14px 20px;margin:0 auto 20px;box-shadow:0 4px 24px rgba(0,0,0,0.35);">
+      <img src="/static/logo.png" alt="Sento Run" style="height:72px;object-fit:contain;display:block;">
+    </div>
+    <h1>Sento Run</h1>
+    <p class="subtitle">Recomendaciones personalizadas basadas en tus datos y análisis con inteligencia artificial.</p>
+
+    <!-- LICENSE BOX -->
+    <div class="license-box">
+      <div class="license-message">
+        Sento se encuentra en un proceso de liberación controlada, por lo que las licencias son limitadas en este momento.
+      </div>
+      {% if available > 0 %}
+        <span class="license-count">{{ available }}</span>
+        <span class="license-sub">lugares disponibles</span>
+      {% else %}
+        <span class="license-count full">0</span>
+        <span class="license-sub">Sin disponibilidad por el momento</span>
+      {% endif %}
+    </div>
+
+    {% if capacity_error %}
+    <div class="capacity-error">
+      🚫 <strong>{{ _('Acceso no disponible.') }}</strong> {{ _('El portal ha alcanzado el límite máximo de usuarios. Contacta al administrador para solicitar acceso.') }}
+    </div>
     {% endif %}
+
+    <a href="/auth/google" class="btn-google" {% if available == 0 %}style="opacity:0.4;pointer-events:none;cursor:not-allowed;"{% endif %}>
+      <svg viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      {{ _('Continuar con Google') }}
+    </a>
+
+    <div class="disclaimer">
+      ⚠️ <strong>Aviso:</strong> Las recomendaciones de Sento Run son <strong>orientativas</strong> y no constituyen asesoramiento médico ni deportivo profesional.
+    </div>
+
+    <div class="scroll-hint" onclick="document.querySelector('.privacy-section').scrollIntoView({behavior:'smooth'})">
+      Aviso de Privacidad ↓
+    </div>
   </div>
+</section>
 
-  {% if capacity_error %}
-  <div style="margin-bottom:16px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:14px 16px;font-size:13px;color:#991b1b;line-height:1.6;text-align:left;">
-    🚫 <strong>Acceso no disponible.</strong> El portal ha alcanzado el límite máximo de usuarios. Contacta al administrador para solicitar acceso.
-  </div>
-  {% endif %}
+<!-- ── SECTION 2: PRIVACY ── -->
+<section class="privacy-section">
+  <div>
+    <div class="privacy-card">
+      <h2>🔐 Aviso de Privacidad</h2>
+      <p class="privacy-intro">Al hacer clic en "Continuar con Google" confirmas haber leído y aceptado el tratamiento de tus datos conforme a este aviso.</p>
 
-  <a href="/auth/google" class="btn-google" {% if available == 0 %}style="opacity:0.5;pointer-events:none;cursor:not-allowed;"{% endif %}>
-    <svg viewBox="0 0 48 48">
-      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-    </svg>
-    Continuar con Google
-  </a>
-
-  <div style="margin-top:20px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;font-size:12px;color:#78350f;line-height:1.6;text-align:left;">
-    ⚠️ <strong>Aviso:</strong> Las recomendaciones de Sento Run son <strong>orientativas</strong> y no constituyen asesoramiento médico ni deportivo profesional. El uso es responsabilidad del usuario. Esta app no es oficial de Garmin.
-  </div>
-
-  <div class="privacy-box">
-    🔐 <strong>Aviso de Privacidad</strong> — Al continuar, confirmas haber leído y aceptar el tratamiento de tus datos conforme a este aviso.
-    <br><button class="privacy-toggle" onclick="togglePrivacy()">Leer aviso completo ▾</button>
-    <div class="privacy-full" id="privacyFull">
       <h4>Responsable del tratamiento</h4>
-      Sento Run es una aplicación de análisis de entrenamiento deportivo. No tiene relación oficial con Garmin Ltd. ni con Google LLC.
+      <p>Sento Run es una aplicación de análisis de entrenamiento deportivo. No tiene relación oficial con Garmin Ltd. ni con Google LLC.</p>
 
       <h4>Datos que se recopilan</h4>
       <ul>
@@ -103,20 +291,14 @@
         <li>Solo el propio usuario y el administrador de la plataforma pueden acceder a los datos.</li>
       </ul>
 
-      <h4>Consentimiento</h4>
-      Al hacer clic en "Continuar con Google" confirmas que has leído este aviso y otorgas tu consentimiento para el tratamiento de tus datos en los términos descritos. Puedes solicitar la eliminación de tu cuenta y datos en cualquier momento contactando al administrador.
+      <div class="consent-note">
+        Al hacer clic en "Continuar con Google" confirmas que has leído este aviso y otorgas tu consentimiento para el tratamiento de tus datos. Puedes solicitar la eliminación de tu cuenta y datos en cualquier momento contactando al administrador.
+      </div>
     </div>
-  </div>
-</div>
 
-<script>
-function togglePrivacy() {
-  const el = document.getElementById('privacyFull');
-  const btn = document.querySelector('.privacy-toggle');
-  const visible = el.style.display === 'block';
-  el.style.display = visible ? 'none' : 'block';
-  btn.textContent = visible ? 'Leer aviso completo ▾' : 'Cerrar aviso ▴';
-}
-</script>
+    <footer>© 2026 Sento Run · {{ _('Entrenamiento inteligente para corredores') }}</footer>
+  </div>
+</section>
+
 </body>
 </html>

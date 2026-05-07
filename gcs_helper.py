@@ -117,3 +117,15 @@ class GCSHelper:
         except Exception as e:
             logger.error(f"Error uploading bytes to {blob_name}: {e}")
             return False
+
+    def download_bytes(self, blob_name: str) -> bytes | None:
+        """Downloads a blob as raw bytes."""
+        if not self.bucket: return None
+        try:
+            blob = self.bucket.blob(blob_name)
+            if blob.exists():
+                return blob.download_as_bytes()
+            return None
+        except Exception as e:
+            logger.error(f"Error downloading bytes {blob_name}: {e}")
+            return None

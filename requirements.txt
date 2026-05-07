@@ -8,3 +8,6 @@ python-dotenv
 google-genai
 authlib
 requests
+pytest
+Flask-Babel>=4.0.0
+Pillow>=10.0.0

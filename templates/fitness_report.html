@@ -1,90 +1,143 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sento Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+  :root {
+    --accent: #f97316;
+    --accent-dark: #ea580c;
+    --green: #22c55e;
+    --green-dark: #16a34a;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-  h2 { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
-  h3 { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 10px; }
-  .section { background: #fff; border-radius: 14px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 10px #0001; }
-  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 0; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { background: #f8f9fa; font-weight: 600; text-align: left; padding: 10px 8px; color: #555; font-size: 13px; border-bottom: 2px solid #e0e0e0; }
-  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 28px 24px; border-radius: 14px; margin-bottom: 24px; }
-  .header h1 { font-size: 26px; font-weight: 800; }
-  .header p { opacity: 0.75; margin-top: 4px; font-size: 14px; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 80px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px; }
+  h2 { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 16px; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+  h3 { font-size: 15px; font-weight: 700; color: #374151; margin-bottom: 10px; }
+  .section { background: var(--card); border-radius: 16px; padding: 22px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f9fafb; font-weight: 700; text-align: left; padding: 10px 8px; color: var(--muted); font-size: 12px; border-bottom: 2px solid var(--border); letter-spacing: 0.3px; text-transform: uppercase; }
+  .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f3460 100%); color: white; padding: 28px 24px; border-radius: 16px; margin-bottom: 20px; }
+  .header h1 { font-size: 26px; font-weight: 900; }
+  .header p { opacity: 0.7; margin-top: 4px; font-size: 14px; }
   .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } }
-  .chart-box { background: #fff; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 8px #0001; }
+  .chart-box { background: var(--card); border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
   .chart-wrap { position: relative; height: 160px; width: 100%; }
   .tag { display: inline-block; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
   .spin { display:inline-block;animation:spin 1s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
-  /* AI Chat */
-  #aiChatSection { border-left:5px solid #6366f1;background:#fafafe; }
-  #aiQuestion { width:100%;border:1px solid #e0e0e0;border-radius:10px;padding:14px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;transition:border 0.2s;outline:none; }
-  #aiQuestion:focus { border-color:#6366f1;box-shadow:0 0 0 3px #6366f120; }
-  #charCount { font-size:12px;color:#aaa;text-align:right;margin-top:4px; }
-  #askBtn { background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:30px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity 0.2s;margin-top:10px; }
+
+  /* Metric cards */
+  .metric-card { background: var(--card); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); min-width: 130px; flex: 1; border-top: 3px solid transparent; transition: transform 0.15s; }
+  .metric-card:hover { transform: translateY(-2px); }
+  .metric-icon { font-size: 20px; margin-bottom: 8px; }
+  .metric-value { font-size: 32px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+  .metric-unit { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+  .metric-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+  .metric-sub { font-size: 11px; color: #9ca3af; margin-top: 3px; }
+
+  /* Chat */
+  #aiChatSection { border-left: 4px solid var(--accent); background: #fffbf7; }
+  #aiChatSection h2 { color: var(--accent-dark); border-color: #fed7aa; }
+  #aiQuestion { width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;font-family:inherit;resize:none;min-height:48px;max-height:120px;overflow-y:auto;transition:border 0.2s;outline:none;background:#fff; }
+  #aiQuestion:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(249,115,22,0.12); }
+  #charCount { font-size:11px;color:#9ca3af;text-align:right;margin-top:2px; }
+  #askBtn { background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;border:none;border-radius:12px;padding:12px 22px;font-size:14px;font-weight:800;cursor:pointer;transition:opacity 0.2s;margin-top:0;white-space:nowrap; }
   #askBtn:hover { opacity:0.88; }
-  #askBtn:disabled { opacity:0.5;cursor:not-allowed; }
-  #aiResponse { margin-top:16px;padding:16px;background:#fff;border-radius:10px;border:1px solid #e8e8f0;min-height:60px;font-size:14px;color:#333;line-height:1.7;display:none; }
-  #aiLoader { display:none;text-align:center;padding:20px;color:#6366f1;font-size:14px;gap:8px;align-items:center;justify-content:center; }
+  #askBtn:disabled { opacity:0.45;cursor:not-allowed; }
+  #aiResponse { margin-top:16px;padding:16px;background:#fff;border-radius:12px;border:1px solid #fed7aa;min-height:60px;font-size:14px;color:var(--text);line-height:1.7;display:none; }
+  #aiLoader { display:none;text-align:center;padding:16px;color:var(--accent);font-size:13px;gap:8px;align-items:center;justify-content:center; }
   /* Chat bubbles */
-  #chatHistory { display:flex;flex-direction:column;gap:10px;margin-bottom:14px;max-height:420px;overflow-y:auto;padding:4px 2px; }
-  .chat-bubble { max-width:88%;padding:12px 15px;border-radius:14px;font-size:14px;line-height:1.6;word-break:break-word; }
-  .bubble-user { align-self:flex-end;background:#6366f1;color:#fff;border-bottom-right-radius:4px; }
-  .bubble-model { align-self:flex-start;background:#f1f3f9;color:#222;border-bottom-left-radius:4px; }
+  #chatHistory { display:flex;flex-direction:column;gap:12px;margin-bottom:14px;max-height:440px;overflow-y:auto;padding:4px 2px; }
+  .chat-bubble { max-width:86%;padding:13px 16px;border-radius:16px;font-size:14px;line-height:1.65;word-break:break-word; }
+  .bubble-user { align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;border-bottom-right-radius:4px;box-shadow:0 2px 8px rgba(249,115,22,0.3); }
+  .bubble-model { align-self:flex-start;background:#fff;color:var(--text);border-bottom-left-radius:4px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,0.06); }
   .chat-input-row { display:flex;gap:10px;align-items:flex-end; }
-  #aiQuestion { flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;font-size:14px;font-family:inherit;resize:none;min-height:48px;max-height:120px;overflow-y:auto;transition:border 0.2s;outline:none; }
-  #aiQuestion:focus { border-color:#6366f1;box-shadow:0 0 0 3px #6366f120; }
-  #charCount { font-size:11px;color:#aaa;text-align:right;margin-top:2px; }
+
+  /* Bottom mobile nav */
+  .bottom-nav { display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);z-index:200;padding:0;box-shadow:0 -2px 12px rgba(0,0,0,0.08); }
+  .bottom-nav-inner { display:flex;justify-content:space-around;align-items:center;height:60px;max-width:600px;margin:0 auto; }
+  .bnav-btn { display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 12px;color:var(--muted);font-size:10px;font-weight:700;text-decoration:none;font-family:inherit;transition:color 0.15s;text-transform:uppercase;letter-spacing:0.3px; }
+  .bnav-btn .bnav-icon { font-size:22px;line-height:1; }
+  .bnav-btn.active, .bnav-btn:hover { color:var(--accent); }
+  @media (max-width: 640px) {
+    .bottom-nav { display:block; }
+    .container { padding: 14px 12px; }
+    .metric-card { min-width: 120px; }
+    .metric-value { font-size: 28px; }
+    table { font-size: 12px; }
+    th, td { padding: 8px 6px !important; }
+  }
 </style>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<meta property="og:image" content="/static/og-image.png">
 </head>
 <body>
 
 <!-- NAVBAR -->
-<nav style="background:linear-gradient(135deg,#1a1a2e,#0f3460);color:white;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.25);">
-  <div style="font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;">
-    🏃 Sento Run
-    {% if _admin_viewing %}<span style="background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">VISTA ADMIN: {{ _admin_user_email }}</span>{% endif %}
+<nav style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:white;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,0.3);">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span>
+    <span style="font-size:16px;font-weight:900;letter-spacing:-0.3px;">Sento</span>
+    <span style="background:#f97316;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:0.5px;">RUN</span>
+    {% if _admin_viewing %}<span style="background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:4px;">ADMIN: {{ _admin_user_email }}</span>{% endif %}
   </div>
-  <div style="display:flex;align-items:center;gap:16px;font-size:13px;">
-    {% if session.is_admin %}<a href="/admin/" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:600;">⚙️ Admin</a>{% endif %}
-    {% if session.picture_url %}<img src="{{ session.picture_url }}" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);" alt="">{% endif %}
-    <span style="color:rgba(255,255,255,0.9);">{{ session.display_name or session.email or '' }}</span>
-    <a href="/auth/logout" style="color:rgba(255,255,255,0.7);text-decoration:none;">Salir</a>
+  <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+    {% if session.is_admin %}<a href="/admin/" style="color:rgba(255,255,255,0.75);text-decoration:none;font-weight:600;">⚙️</a>{% endif %}
+    <!-- User menu dropdown -->
+    <div style="position:relative;" id="userMenuWrap">
+      <button onclick="toggleUserMenu()" id="userMenuBtn"
+        style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:4px 10px 4px 4px;cursor:pointer;color:white;transition:background 0.2s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.14)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" style="width:26px;height:26px;border-radius:50%;border:2px solid #f97316;flex-shrink:0;" alt="">
+        {% else %}
+        <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ea580c);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0;">{{ (session.display_name or 'A')[0].upper() }}</div>
+        {% endif %}
+        <span style="font-weight:600;font-size:13px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ (session.display_name or '').split()[0] or '' }}</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="opacity:0.6;flex-shrink:0;"><path d="M2 3.5L5 6.5L8 3.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <!-- Dropdown -->
+      <div id="userMenu" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);min-width:180px;overflow:hidden;z-index:200;">
+        <a href="/user/profile" style="display:flex;align-items:center;gap:10px;padding:13px 16px;text-decoration:none;color:#0f172a;font-size:13px;font-weight:600;transition:background 0.15s;border-bottom:1px solid #f3f4f6;"
+          onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+          <span style="font-size:16px;">👤</span> Mi perfil
+        </a>
+        <a href="/auth/logout" style="display:flex;align-items:center;gap:10px;padding:12px 16px;text-decoration:none;color:#ef4444;font-size:13px;font-weight:600;transition:background 0.15s;"
+          onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">
+          <span style="font-size:15px;">→</span> {{ _("Salir") }}
+        </a>
+      </div>
+    </div>
   </div>
 </nav>
 
 <div class="container">
 
-  {% if garmin_sync_disabled %}
-  <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:10px;padding:14px 18px;margin-bottom:18px;">
-    <div style="color:#1e40af;font-size:14px;margin-bottom:10px;">🔧 <strong>Sincronización con Garmin temporalmente desactivada.</strong> Estamos trabajando para restablecer la conexión. Mientras tanto, puedes importar tus actividades manualmente desde Garmin Connect.</div>
-    <div style="font-size:13px;color:#1d4ed8;margin-bottom:10px;">Para exportar tu CSV: abre <strong>Garmin Connect → Actividades → Descargar datos</strong> y sube el archivo aquí:</div>
-    <label id="csv-label-disabled" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-block;">
-      📂 Importar actividades desde CSV
-      <input type="file" accept=".csv" style="display:none" onchange="uploadCSV(this)">
-    </label>
-  </div>
-  {% endif %}
 
   {% if garmin_reconnect_needed %}
   <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
     <span style="color:#9a3412;font-size:14px;">⚠️ <strong>Conexión con Garmin interrumpida.</strong> Estás viendo tus últimos datos guardados.</span>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <label id="csv-label-reconnect" style="background:#16a34a;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
-        📂 Importar CSV de Garmin
+        📂 {{ _('Importar CSV de Garmin') }}
         <input type="file" accept=".csv" style="display:none" onchange="uploadCSV(this)">
       </label>
-      <a href="/garmin-reconnect" style="background:#ea580c;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;">🔌 Reconectar Garmin</a>
+      <a href="/garmin-reconnect" style="background:#ea580c;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;">🔌 {{ _('Reconectar Garmin') }}</a>
     </div>
   </div>
   {% endif %}
@@ -134,14 +187,61 @@
       msg.textContent = '❌ Error al subir el archivo.';
     }
   }
+
+  function openCsvModal() {
+    const m = document.getElementById('csvModal');
+    m.style.display = 'flex';
+    document.getElementById('csv-modal-msg').style.display = 'none';
+    const lbl = document.getElementById('csv-modal-label');
+    lbl.style.opacity = '1'; lbl.style.pointerEvents = 'auto';
+    lbl.childNodes[0].textContent = '📂 {{ _('Importar actividades desde CSV') }}';
+  }
+
+  function closeCsvModal() {
+    document.getElementById('csvModal').style.display = 'none';
+  }
+
+  async function uploadCSVModal(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const lbl = document.getElementById('csv-modal-label');
+    const msg = document.getElementById('csv-modal-msg');
+    lbl.style.opacity = '0.5'; lbl.style.pointerEvents = 'none';
+    lbl.childNodes[0].textContent = '⏳ Subiendo...';
+    msg.style.display = 'block';
+    msg.style.background = '#fff7ed'; msg.style.color = '#9a3412';
+    msg.textContent = '⏳ Subiendo actividades...';
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/upload-activities', {method: 'POST', body: form});
+      const data = await res.json();
+      if (data.error) {
+        msg.style.background = '#fef2f2'; msg.style.color = '#991b1b';
+        msg.textContent = '❌ ' + data.error;
+        lbl.style.opacity = '1'; lbl.style.pointerEvents = 'auto';
+        lbl.childNodes[0].textContent = '📂 Importar actividades desde CSV';
+      } else {
+        msg.style.background = '#f0fdf4'; msg.style.color = '#166534';
+        const total = (data.added || 0) + (data.updated || 0);
+        msg.textContent = total > 0 ? `✅ ${total} actividades procesadas. Generando prescripción…` : '✅ Generando prescripción con datos existentes…';
+        setTimeout(() => { window.location.href = '/'; }, 1800);
+      }
+    } catch(e) {
+      msg.style.background = '#fef2f2'; msg.style.color = '#991b1b';
+      msg.textContent = '❌ Error al subir el archivo.';
+      lbl.style.opacity = '1'; lbl.style.pointerEvents = 'auto';
+    }
+    input.value = '';
+  }
   </script>
 
   <!-- HEADER -->
-  <div class="header">
+  <div class="header" style="display:none;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
       <div>
-        <h1>📊 Análisis de Condición Física</h1>
-        <p>{{ user_profile.full_name | default("Jorvan") }} · {{ date_str }} · Altitud de entrenamiento: ~2,263m</p>
+        <h1><img src="/static/logo-icon.png" alt="" style="height:24px;width:24px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;"> Sento Run</h1>
+        <p>{{ user_profile.full_name | default("Atleta") }} · {{ date_str }}</p>
       </div>
       <div style="text-align:right;">
         {% if last_refresh %}
@@ -152,134 +252,323 @@
     </div>
   </div>
 
-  <!-- SNAPSHOT DE HOY -->
-  <div class="section">
-    <h2>🌅 Snapshot de Hoy</h2>
-    <div class="stat-row">
-      
-        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
-            <div style="font-size:22px;">🫀</div>
-            <div style="font-size:28px;font-weight:800;color:#eab308;">{{ vo2_max }}<span style="font-size:14px;font-weight:400;color:#999;"> ml/kg/min</span></div>
-            <div style="font-size:13px;color:#666;margin-top:2px;">VO2 Máx</div>
-            <div style="font-size:12px;color:#aaa;margin-top:2px;">Muy bueno</div>
+  <!-- ADMIN: Race assignment selector -->
+  {% if _admin_viewing and _all_races %}
+  <div id="adminRaceCard" style="background:white;border-radius:14px;padding:14px 18px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div style="font-size:12px;font-weight:800;color:#1a1a2e;white-space:nowrap;">🏁 Competencia vinculada</div>
+    <select id="raceSelect" style="flex:1;min-width:200px;font-size:13px;padding:7px 10px;border:1.5px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#1a1a2e;font-weight:600;cursor:pointer;">
+      <option value="">— Sin vincular —</option>
+      {% for r in _all_races %}
+      <option value="{{ r.id }}" {% if r.id == _current_race_id %}selected{% endif %}>
+        {{ r.event_date }} · {{ r.name }} ({{ r.race_type }})
+      </option>
+      {% endfor %}
+    </select>
+    <button onclick="assignRace()" style="background:#0f3460;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Asignar</button>
+    <span id="raceAssignMsg" style="font-size:12px;color:#22c55e;display:none;font-weight:600;"></span>
+  </div>
+  <script>
+  async function assignRace() {
+    const raceId = document.getElementById('raceSelect').value;
+    const msg = document.getElementById('raceAssignMsg');
+    msg.style.display = 'none';
+    const res = await fetch('/admin/user/{{ _viewed_uid }}/assign-race', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({race_id: raceId})
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msg.textContent = raceId ? `✓ Vinculado: ${data.race_name}` : '✓ Vínculo eliminado';
+      msg.style.color = '#22c55e';
+    } else {
+      msg.textContent = '✗ ' + (data.error || 'Error');
+      msg.style.color = '#ef4444';
+    }
+    msg.style.display = 'inline';
+    setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  }
+  </script>
+  {% endif %}
+
+  <!-- HERO CARD — objetivo de carrera -->
+  {% set _wi = {'rest': '😴', 'easy': '🏃', 'tempo': '⚡', 'intervals': '🔥', 'long': '🌿', 'cross': '💪', 'race': '🏁', 'recovery': '💆'} %}
+  <div style="border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.35);margin-bottom:24px;position:relative;
+    {% if race_image_url %}background-image:url('{{ race_image_url }}');background-size:cover;background-position:center;{% else %}background:linear-gradient(160deg,#1a1a2e 0%,#0f3460 100%);{% endif %}">
+    <!-- Dark overlay -->
+    <div style="background:{% if race_image_url %}linear-gradient(160deg,rgba(10,10,30,0.82) 0%,rgba(15,52,96,0.75) 100%){% else %}transparent{% endif %};padding:0;">
+
+      {% if goal_configured %}
+      <!-- TOP ROW: race name + CTA buttons -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 22px 0;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:4px;">Mi objetivo</div>
+          <div style="font-size:clamp(18px,4vw,28px);font-weight:900;color:white;text-transform:uppercase;letter-spacing:0.5px;line-height:1.1;margin-bottom:6px;">{{ race_display_name or training_goal.race_type }}</div>
+          {% if event_date_display %}
+          <div style="font-size:12px;color:rgba(255,255,255,0.65);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span>📅 {{ event_date_display }}</span>
+            {% if days_until_race is not none %}
+            <span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:2px 10px;font-weight:700;white-space:nowrap;">Faltan {{ days_until_race }} días</span>
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
-      
-        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
-            <div style="font-size:22px;">❤️</div>
-            <div style="font-size:28px;font-weight:800;color:#22c55e;">{{ rhr }}<span style="font-size:14px;font-weight:400;color:#999;"> bpm</span></div>
-            <div style="font-size:13px;color:#666;margin-top:2px;">FC en reposo</div>
-            <div style="font-size:12px;color:#aaa;margin-top:2px;">Promedio mensual: {{ chart_rhr[-1] if chart_rhr else '—' }}</div>
+        <!-- CTA buttons -->
+        <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;min-width:160px;">
+          {% if _admin_viewing %}
+          <a href="/admin/user/{{ _viewed_uid }}/plan" style="display:flex;align-items:center;justify-content:center;gap:7px;background:#22c55e;color:white;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap;">
+            📅 {{ _('Ver plan') }}
+          </a>
+          {% else %}
+          <a href="/plan" style="display:flex;align-items:center;justify-content:center;gap:7px;background:#22c55e;color:white;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap;transition:opacity 0.2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+            📅 Ver mi plan
+          </a>
+          <button onclick="openCsvModal()" style="display:flex;align-items:center;justify-content:center;gap:7px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:8px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;width:100%;transition:opacity 0.2s;" onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
+            📂 Cargar actividades
+          </button>
+          {% endif %}
         </div>
-      
-        {% if sleep_hours and sleep_hours > 0 %}
-        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
-            <div style="font-size:22px;">😴</div>
-            <div style="font-size:28px;font-weight:800;color:#eab308;">{{ sleep_hours }}<span style="font-size:14px;font-weight:400;color:#999;"> h</span></div>
-            <div style="font-size:13px;color:#666;margin-top:2px;">Sueño anoche</div>
-            <div style="font-size:12px;color:#aaa;margin-top:2px;">Score: {{ sleep_score }}</div>
+      </div>
+
+      <!-- MIDDLE ROW: pace + distance + time -->
+      <div style="display:flex;align-items:center;justify-content:space-around;gap:12px;padding:18px 22px;flex-wrap:wrap;">
+        {% if race_distance_km %}
+        <div style="text-align:center;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:4px;">Distancia</div>
+          <div style="font-size:22px;font-weight:900;color:white;">{{ race_distance_km }} <span style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.6);">km</span></div>
+        </div>
+        <div style="width:1px;height:40px;background:rgba(255,255,255,0.15);flex-shrink:0;"></div>
+        {% endif %}
+        <div style="text-align:center;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:4px;">Ritmo meta</div>
+          <div style="font-size:clamp(26px,6vw,38px);font-weight:900;color:#facc15;letter-spacing:-1px;line-height:1;">{{ training_goal.target_pace_str }}<span style="font-size:14px;font-weight:500;color:rgba(255,255,255,0.45);"> /km</span></div>
+        </div>
+        {% if target_time_str %}
+        <div style="width:1px;height:40px;background:rgba(255,255,255,0.15);flex-shrink:0;"></div>
+        <div style="text-align:center;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:4px;">Objetivo tiempo</div>
+          <div style="font-size:18px;font-weight:900;color:white;">{{ target_time_str }}</div>
         </div>
         {% endif %}
-      
-        <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px #0001;min-width:140px;flex:1;">
-            <div style="font-size:22px;">🧠</div>
-            <div style="font-size:28px;font-weight:800;color:#22c55e;">{{ stress_score }}<span style="font-size:14px;font-weight:400;color:#999;"> </span></div>
-            <div style="font-size:13px;color:#666;margin-top:2px;">Estrés promedio</div>
-            <div style="font-size:12px;color:#aaa;margin-top:2px;">0=bajo 100=alto</div>
+      </div>
+
+      <!-- BOTTOM: mini weekly plan -->
+      {% if plan_current_week_workouts %}
+      <div style="background:rgba(0,0,0,0.35);border-top:1px solid rgba(255,255,255,0.1);padding:14px 18px 16px;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:10px;">
+          Tu plan de esta semana
+          {% if plan_current_week_num and plan_total_weeks %}
+          <span style="color:rgba(255,255,255,0.35);font-weight:500;">&nbsp;(Semana {{ plan_current_week_num }}/{{ plan_total_weeks }})</span>
+          {% endif %}
         </div>
+        {% set _sc = {'green':'#4ade80','yellow':'#fbbf24','white':'rgba(255,255,255,0.85)'} %}
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;overflow-x:auto;">
+          {% for w in plan_current_week_workouts %}
+          {% set wtype = w.type | default('rest') %}
+          {% set _bg = {'rest':'rgba(100,100,120,0.3)','easy':'rgba(29,78,216,0.35)','tempo':'rgba(194,65,12,0.35)','intervals':'rgba(220,38,38,0.4)','long':'rgba(21,128,61,0.35)','cross':'rgba(109,40,217,0.35)','race':'rgba(202,138,4,0.4)','recovery':'rgba(109,40,217,0.3)'} %}
+          {% set has_act = w._primary_act is not none %}
+          {% set loop_day = loop.index0 %}
+          <div style="background:{{ _bg.get(wtype,'rgba(80,80,100,0.3)') }};border-radius:8px;padding:7px 4px 6px;text-align:center;min-width:38px;{% if week_has_actuals %}min-height:116px;{% endif %}display:flex;flex-direction:column;align-items:center;">
+            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-bottom:3px;">{{ (w.day_name or '')[:3] }}</div>
+            {# icon: actual activity type when done, plan emoji otherwise #}
+            <div style="font-size:16px;margin-bottom:2px;">
+              {% if has_act %}{{ w._primary_act.icon }}{% else %}{{ _wi.get(wtype,'🏃') }}{% endif %}
+            </div>
+            {% if w.km and w.km > 0 %}<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.9);">{{ w.km }}km</div>{% endif %}
+            <div style="font-size:9px;color:rgba(255,255,255,0.6);line-height:1.2;margin-top:2px;">{{ (w.label or wtype)|title }}</div>
+            {% if week_has_actuals %}
+            <div style="margin-top:auto;padding-top:5px;border-top:1px solid rgba(255,255,255,0.12);width:100%;text-align:center;">
+              {% if has_act %}
+                <div style="display:flex;align-items:center;justify-content:center;gap:3px;">
+                  <span style="font-size:10px;font-weight:800;color:{{ _sc.get(w._status,'rgba(255,255,255,0.85)') }};">
+                    {% if w._actual_km %}{{ w._actual_km }}km{% else %}✓{% endif %}
+                  </span>
+                  {% if w._acts | length > 1 %}
+                  <button onclick="openActsModal({{ loop_day }})" title="Ver todas las actividades"
+                    style="background:rgba(255,255,255,0.18);border:none;border-radius:4px;width:14px;height:14px;font-size:9px;cursor:pointer;color:white;padding:0;line-height:14px;flex-shrink:0;">ℹ</button>
+                  {% endif %}
+                </div>
+                {% if w._primary_act.pace %}<div style="font-size:9px;color:rgba(255,255,255,0.45);margin-top:1px;">{{ w._primary_act.pace }}</div>{% endif %}
+              {% else %}
+                <div style="font-size:9px;color:rgba(255,255,255,0.0);">·</div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {# Activities detail modal — data embedded as JSON for JS #}
+        {% if week_has_actuals %}
+        <script>
+        const _planDayActs = [
+          {% for w in plan_current_week_workouts %}
+          { day: {{ (w.day_name or '') | tojson }}, acts: [
+            {% for a in (w._acts or []) %}
+            { icon: {{ a.icon | tojson }}, name: {{ a.name | tojson }}, km: {{ a.km | tojson }}, pace: {{ a.pace | tojson }}, dur: {{ a.duration_min | tojson }} }{% if not loop.last %},{% endif %}
+            {% endfor %}
+          ]}{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ];
+        function openActsModal(dayIdx) {
+          const d = _planDayActs[dayIdx];
+          if (!d) return;
+          let rows = d.acts.map(a => {
+            let detail = [];
+            if (a.km) detail.push(`<strong>${a.km} km</strong>`);
+            if (a.pace) detail.push(`${a.pace} /km`);
+            if (a.dur) detail.push(`${a.dur} min`);
+            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6;">
+              <span style="font-size:22px;width:32px;text-align:center;flex-shrink:0;">${a.icon}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:700;color:#0f172a;">${a.name}</div>
+                <div style="font-size:12px;color:#6b7280;margin-top:2px;">${detail.join(' · ') || 'Sin datos de distancia'}</div>
+              </div>
+            </div>`;
+          }).join('');
+          document.getElementById('actsModalTitle').textContent = d.day;
+          document.getElementById('actsModalBody').innerHTML = rows;
+          const m = document.getElementById('actsModal');
+          m.style.display = 'flex';
+        }
+        function closeActsModal() { document.getElementById('actsModal').style.display = 'none'; }
+        </script>
+        <div id="actsModal" onclick="if(event.target===this)closeActsModal()"
+          style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;align-items:center;justify-content:center;padding:16px;">
+          <div style="background:#fff;border-radius:20px;padding:24px;max-width:400px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.25);max-height:80vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <div style="font-size:16px;font-weight:800;color:#0f172a;" id="actsModalTitle"></div>
+              <button onclick="closeActsModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;line-height:1;padding:2px 6px;">✕</button>
+            </div>
+            <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;">Actividades del día</div>
+            <div id="actsModalBody"></div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% else %}
+      <!-- No plan yet — show HR zones compact -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 22px 20px;">
+        <div style="background:rgba(255,255,255,0.07);border-radius:8px;padding:7px 8px;text-align:center;">
+          <div style="font-size:9px;color:rgba(255,255,255,0.45);font-weight:700;text-transform:uppercase;margin-bottom:2px;">🟢 Suave</div>
+          <div style="font-size:12px;font-weight:800;color:white;">&lt;{{ training_goal.easy_hr_max }}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.07);border-radius:8px;padding:7px 8px;text-align:center;">
+          <div style="font-size:9px;color:rgba(255,255,255,0.45);font-weight:700;text-transform:uppercase;margin-bottom:2px;">🟡 Tempo</div>
+          <div style="font-size:12px;font-weight:800;color:white;">{{ training_goal.tempo_hr_min }}–{{ training_goal.tempo_hr_max }}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.07);border-radius:8px;padding:7px 8px;text-align:center;">
+          <div style="font-size:9px;color:rgba(255,255,255,0.45);font-weight:700;text-transform:uppercase;margin-bottom:2px;">🔴 Interv.</div>
+          <div style="font-size:12px;font-weight:800;color:white;">≥{{ training_goal.interval_hr_min }}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.07);border-radius:8px;padding:7px 8px;text-align:center;">
+          <div style="font-size:9px;color:rgba(255,255,255,0.45);font-weight:700;text-transform:uppercase;margin-bottom:2px;">📏 Pico</div>
+          <div style="font-size:12px;font-weight:800;color:white;">{{ training_goal.weekly_peak_km | int }}km</div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% else %}
+      <!-- Sin objetivo configurado -->
+      <div style="text-align:center;padding:40px 24px 36px;">
+        <div style="font-size:36px;margin-bottom:12px;">🎯</div>
+        <div style="font-size:22px;font-weight:900;color:white;margin-bottom:8px;">Crea tu plan de entrenamiento</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.65);line-height:1.7;margin-bottom:24px;max-width:460px;margin-left:auto;margin-right:auto;">
+          Dile a Sento cuál es tu próxima carrera: 10K, media maratón o maratón. En minutos tendrás un plan semana a semana personalizado para ti.
+        </div>
+        <div id="heroNoBtns" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          {% if _admin_viewing %}
+          <span style="font-size:13px;color:rgba(255,255,255,0.45);font-style:italic;">Sin objetivo configurado</span>
+          {% else %}
+          <a id="btnGoalSento" href="/goal/setup" style="display:inline-flex;align-items:center;gap:8px;background:#22c55e;color:white;border-radius:12px;padding:14px 28px;font-size:15px;font-weight:800;text-decoration:none;transition:opacity 0.2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+            🤖 Definir objetivo con Sento
+          </a>
+          <button id="btnGoalManual" onclick="openGoalModal()" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.3);border-radius:12px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity 0.2s;" onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
+            ✏️ Definir objetivo manualmente
+          </button>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div><!-- /overlay -->
+  </div><!-- /hero card -->
+
+  <!-- SNAPSHOT DE HOY -->
+  {% if not sections_disabled.get('snapshot', False) %}
+  <div class="section">
+    <h2>🌅 {{ _('Snapshot de Hoy') }}</h2>
+    <div class="stat-row">
+      <div class="metric-card" style="border-top-color:#f59e0b;">
+        <div class="metric-icon">🫀</div>
+        <div class="metric-value" style="color:#d97706;">{{ vo2_max }}<span class="metric-unit">ml/kg/min</span></div>
+        <div class="metric-label">VO2 Máx</div>
+        <div class="metric-sub">Capacidad aeróbica</div>
+      </div>
+      <div class="metric-card" style="border-top-color:#22c55e;">
+        <div class="metric-icon">❤️</div>
+        <div class="metric-value" style="color:#16a34a;">{{ rhr }}<span class="metric-unit">bpm</span></div>
+        <div class="metric-label">FC Reposo</div>
+        <div class="metric-sub">Prom. mes: {{ chart_rhr[-1] if chart_rhr else '—' }}</div>
+      </div>
+      {% if sleep_hours and sleep_hours > 0 %}
+      <div class="metric-card" style="border-top-color:#8b5cf6;">
+        <div class="metric-icon">😴</div>
+        <div class="metric-value" style="color:#7c3aed;">{{ sleep_hours }}<span class="metric-unit">h</span></div>
+        <div class="metric-label">Sueño anoche</div>
+        <div class="metric-sub">Score: {{ sleep_score }}</div>
+      </div>
+      {% endif %}
+      <div class="metric-card" style="border-top-color:#f97316;">
+        <div class="metric-icon">🧠</div>
+        <div class="metric-value" style="color:#ea580c;">{{ stress_score }}<span class="metric-unit" style="font-size:11px;"> /100</span></div>
+        <div class="metric-label">Estrés</div>
+        <div class="metric-sub">0 = bajo · 100 = alto</div>
+      </div>
     </div>
   </div>
+  {% endif %}
 
   <!-- COACH IA CHAT -->
+  {% if not sections_disabled.get('chat', False) %}
   <div class="section" id="aiChatSection">
-    <h2>🤖 Sento IA — Pregúntale a tus datos</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px;">
-      Contexto de <strong>{{ days_loaded }} días cargados</strong>
-      {% if earliest_date %}<span style="color:#aaa;font-size:12px;">(desde {{ earliest_date }})</span>{% endif %}
-      de Garmin. Pregunta lo que quieras: Sento recuerda toda la conversación.
-    </p>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #fed7aa;">
+      <div style="width:40px;height:40px;background:linear-gradient(135deg,#f97316,#ea580c);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏅</div>
+      <div>
+        <div style="font-size:17px;font-weight:900;color:#9a3412;">Sento — Tu entrenador IA</div>
+        <div style="font-size:12px;color:#c2410c;">{{ days_loaded }} días de datos cargados{% if earliest_date %} · desde {{ earliest_date }}{% endif %}</div>
+      </div>
+    </div>
     <div id="chatHistory"></div>
     <div id="aiLoader"><span class="spin">⚙️</span>&nbsp;Analizando recomendaciones…</div>
     <div class="chat-input-row">
       <textarea id="aiQuestion" maxlength="500" rows="1" placeholder="Escribe aquí tu pregunta…" onkeydown="handleKey(event)"></textarea>
-      <button id="askBtn" onclick="askAI()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity 0.2s;">✨ Enviar</button>
+      <button id="askBtn" onclick="askAI()">🏁 Enviar</button>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
       <div id="charCount">0 / 500</div>
       <button onclick="clearChat()" style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;padding:0;">🗑 Nueva conversación</button>
     </div>
   </div>
-  
-  <!-- PRESCRIPCIÓN + OBJETIVO -->
-  <div class="section" style="border-left:5px solid #ef4444;background:#fff1f2;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-      <h2 style="margin-bottom:0;">📋 Prescripción del Día{% if goal_configured %} · {{ training_goal.race_type }} (objetivo {{ training_goal.target_pace_str }} /km){% endif %}</h2>
-      {% if not _admin_viewing %}
-      <div style="display:flex;gap:8px;">
-        <a href="/goal/setup" style="display:inline-flex;align-items:center;gap:6px;background:#e8f0fe;border:1px solid #c5d8fc;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#1a73e8;cursor:pointer;text-decoration:none;transition:all 0.2s;" title="Configurar objetivo con asistente IA">
-          🤖 Configurar con IA
-        </a>
-        <button onclick="openGoalModal()" style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #e0e0e0;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#555;cursor:pointer;transition:all 0.2s;" title="Editar manualmente tu objetivo">
-          ✏️ Editar
-        </button>
-      </div>
-      {% endif %}
-    </div>
-    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
-      <div style="flex:2;min-width:260px;" id="prescripcion-ia">
-        {{ ai_recommendation | safe }}
-      </div>
-      <div style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 4px #0001;">
-        {% if goal_configured %}
-        <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;">OBJETIVOS DEL PLAN</div>
-        <div style="font-size:13px;color:#444;line-height:2.1;">
-          🎯 Ritmo meta: <strong>{{ training_goal.target_pace_str }} /km</strong><br>
-          🟢 Trote suave: <strong>&lt;{{ training_goal.easy_hr_max }} bpm</strong><br>
-          🟡 Fondo largo: <strong>{{ training_goal.tempo_hr_min }}–{{ training_goal.tempo_hr_max }} bpm</strong><br>
-          🔴 Intervalos: <strong>≥{{ training_goal.interval_hr_min }} bpm</strong><br>
-          📏 Pico semanal: <strong>{{ training_goal.weekly_peak_km | int }} km</strong>
-        </div>
-        {% if training_goal.description %}
-        <div style="margin-top:10px;font-size:12px;color:#888;border-top:1px solid #f0f0f0;padding-top:8px;">{{ training_goal.description }}</div>
-        {% endif %}
-        {% if not _admin_viewing %}
-        <a href="/plan" style="display:block;text-align:center;background:#1a1a2e;color:white;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;text-decoration:none;margin-top:12px;">📅 Ver plan de entrenamiento</a>
-        {% endif %}
-        {% else %}
-        <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;">SIN OBJETIVO CONFIGURADO</div>
-        <div style="font-size:13px;color:#666;line-height:1.7;margin-bottom:14px;">La prescripción se basa en tus métricas y actividades recientes.</div>
-        {% if not _admin_viewing %}
-        <a href="/goal/setup" style="display:block;text-align:center;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;text-decoration:none;">
-          🎯 Configurar objetivo
-        </a>
-        {% endif %}
-        {% endif %}
-      </div>
-    </div>
+  {% endif %}
 
-    <!-- Barra de progreso semanal -->
-    <div style="margin-top:16px;">
-      {% if goal_configured %}
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:4px;">
-        <span>0 km</span>
-        <span>{{ (training_goal.weekly_peak_km * 0.75) | round(0) | int }} km (base)</span>
-        <span>{{ training_goal.weekly_peak_km | int }} km (pico)</span>
-        <span>{{ (training_goal.weekly_peak_km * 1.125) | round(0) | int }} km (máx)</span>
-      </div>
-      <div style="position:relative;height:18px;background:#e5e7eb;border-radius:9px;overflow:hidden;">
-        <div style="position:absolute;left:0;top:0;height:100%;width:{{ weekly_progress_pct }}%;background:#eab308;border-radius:9px;transition:width 0.3s;"></div>
-        <div style="position:absolute;left:{{ marker_base_pct }}%;top:0;height:100%;width:2px;background:#6b7280;opacity:0.5;"></div>
-        <div style="position:absolute;left:{{ [marker_peak_pct, 97] | min }}%;top:0;height:100%;width:2px;background:#6b7280;opacity:0.5;"></div>
-      </div>
-      <div style="font-size:13px;color:#555;margin-top:6px;"><strong>{{ total_run_distance }} km</strong> acumulados esta semana · Faltan ~<strong>{{ weekly_remaining }} km</strong> para el pico de {{ training_goal.weekly_peak_km | int }} km.</div>
-      {% else %}
-      <div style="font-size:13px;color:#555;"><strong>{{ total_run_distance }} km</strong> corridos esta semana · {{ runs_count }} carrera{{ 's' if runs_count != 1 else '' }}.</div>
-      {% endif %}
-    </div>
+  <!-- Gráfico km por semana (oculto — el strip del plan muestra el progreso semanal) -->
 
-    <!-- Gráfico km por semana (últimas 7 semanas) -->
-    <div style="margin-top:20px;">
-      <div style="font-size:13px;font-weight:700;color:#555;margin-bottom:8px;">📊 Kilómetros semanales — últimas 7 semanas</div>
-      <div style="position:relative;height:140px;"><canvas id="chartWeeklyKm"></canvas></div>
+  <!-- MODAL CARGAR ACTIVIDADES CSV -->
+  <div id="csvModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeCsvModal()">
+    <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:480px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:17px;font-weight:800;color:#0f172a;">📂 Cargar actividades</div>
+        <button onclick="closeCsvModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;line-height:1;padding:2px 6px;">✕</button>
+      </div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13px;color:#9a3412;line-height:1.7;">
+        <strong>Para exportar tu CSV desde Garmin Connect:</strong><br>
+        {{ _('Abre') }} <strong>Garmin Connect</strong> → {{ _('ve a') }} <strong>{{ _('Actividades') }}</strong> → {{ _('selecciona el período') }} → {{ _('haz clic en') }} <strong>Exportar CSV</strong> {{ _('y sube el archivo aquí.') }}
+      </div>
+      <label id="csv-modal-label" style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;padding:13px 20px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;display:block;text-align:center;transition:opacity 0.2s;">
+        📂 Importar actividades desde CSV
+        <input type="file" accept=".csv" style="display:none" onchange="uploadCSVModal(this)">
+      </label>
+      <div id="csv-modal-msg" style="display:none;margin-top:14px;font-size:13px;font-weight:600;text-align:center;padding:10px;border-radius:8px;"></div>
     </div>
   </div>
 
@@ -289,7 +578,7 @@
       <h3 style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">✏️ Editar objetivo de entrenamiento</h3>
       <p style="font-size:13px;color:#888;margin-bottom:18px;">Los cambios se guardan en tu perfil y actualizan la prescripción del día.</p>
       <div id="goalSaveWarning" style="display:none;background:#fff8e1;border-left:3px solid #f59e0b;border-radius:6px;padding:10px 12px;font-size:13px;color:#7c5200;margin-bottom:14px;">
-        ⚠️ Ya tienes un objetivo guardado. Al guardar, <strong>será sobreescrito</strong>.
+        ⚠️ {{ _('Ya tienes un objetivo guardado. Al guardar,') }} <strong>{{ _('será sobreescrito') }}</strong>.
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div>
@@ -327,7 +616,7 @@
       </div>
       <div style="display:flex;gap:10px;margin-top:20px;">
         <button onclick="saveGoal()" style="flex:1;background:linear-gradient(135deg,#1a1a2e,#0f3460);color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">💾 Guardar objetivo</button>
-        <button onclick="closeGoalModal()" style="flex:1;background:#f4f6f9;color:#444;border:1px solid #e0e0e0;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;">Cancelar</button>
+        <button onclick="closeGoalModal()" style="flex:1;background:#f4f6f9;color:#444;border:1px solid #e0e0e0;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;">{{ _("Cancelar") }}</button>
       </div>
       <div id="goalSaveStatus" style="display:none;margin-top:12px;font-size:13px;text-align:center;"></div>
     </div>
@@ -336,7 +625,7 @@
   <!-- SUEÑO DETALLE -->
   {% if sleep_hours and sleep_hours > 0 %}
   <div class="section">
-    <h2>😴 Calidad de Sueño — Anoche</h2>
+    <h2>😴 {{ _('Calidad de Sueño — Anoche') }}</h2>
     <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
       <div style="flex:2;min-width:260px;">
         <p style="font-size:14px;color:#555;margin-bottom:12px;">
@@ -357,7 +646,7 @@
     </div>
       </div>
       <div style="flex:1;min-width:200px;background:#f8f9fa;border-radius:10px;padding:16px;">
-        <h3>Óptimo adulto activo</h3>
+        <h3>{{ _('Óptimo adulto activo') }}</h3>
         <ul style="font-size:13px;color:#555;padding-left:16px;line-height:2;">
           <li>Profundo: 16–33%</li>
           <li>REM: 21–31%</li>
@@ -369,29 +658,35 @@
   {% endif %}
 
   <!-- ACTIVIDADES ESTA SEMANA -->
+  {% if not sections_disabled.get('activities', False) %}
   <div class="section">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:2px solid #e0e0e0;padding-bottom:8px;">
       <h2 style="margin:0;border:none;padding:0;">🏃 Actividades — Últimos 7 Días</h2>
-      <button onclick="openWeeklySummaryModal()" style="display:inline-flex;align-items:center;gap:6px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#0369a1;cursor:pointer;">
-        📊 Progreso semanal
-      </button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="openWeeklySummaryModal()" style="display:inline-flex;align-items:center;gap:6px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#0369a1;cursor:pointer;">
+          📊 Progreso semanal
+        </button>
+        <button onclick="openCsvModal()" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#f97316,#ea580c);border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:white;cursor:pointer;">
+          📂 Cargar actividades
+        </button>
+      </div>
     </div>
     <div class="stat-row" style="margin-bottom:20px;">
-      <div style="background:#f0fdf4;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
-        <div style="font-size:24px;font-weight:800;color:#22c55e;">{{ runs_count }}</div>
-        <div style="font-size:13px;color:#666;">Carreras</div>
+      <div style="background:#f0fdf4;border-radius:12px;padding:14px 18px;flex:1;min-width:120px;border-top:3px solid #22c55e;">
+        <div style="font-size:30px;font-weight:900;color:#16a34a;letter-spacing:-1px;">{{ runs_count }}</div>
+        <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">Carreras</div>
       </div>
-      <div style="background:#fff7ed;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
-        <div style="font-size:24px;font-weight:800;color:#f97316;">{{ strength_count }}</div>
-        <div style="font-size:13px;color:#666;">Sesiones de fuerza</div>
+      <div style="background:#fff7ed;border-radius:12px;padding:14px 18px;flex:1;min-width:120px;border-top:3px solid #f97316;">
+        <div style="font-size:30px;font-weight:900;color:#ea580c;letter-spacing:-1px;">{{ strength_count }}</div>
+        <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">Fuerza</div>
       </div>
-      <div style="background:#eff6ff;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
-        <div style="font-size:24px;font-weight:800;color:#3b82f6;">{{ total_run_distance }}</div>
-        <div style="font-size:13px;color:#666;">km totales carrera</div>
+      <div style="background:#eff6ff;border-radius:12px;padding:14px 18px;flex:1;min-width:120px;border-top:3px solid #3b82f6;">
+        <div style="font-size:30px;font-weight:900;color:#2563eb;letter-spacing:-1px;">{{ total_run_distance }}</div>
+        <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">km corridos</div>
       </div>
-      <div style="background:#fdf4ff;border-radius:10px;padding:14px 20px;flex:1;min-width:130px;">
-        <div style="font-size:24px;font-weight:800;color:#a855f7;">{{ total_load_7d }}</div>
-        <div style="font-size:13px;color:#666;">Carga total</div>
+      <div style="background:#fdf4ff;border-radius:12px;padding:14px 18px;flex:1;min-width:120px;border-top:3px solid #a855f7;">
+        <div style="font-size:30px;font-weight:900;color:#9333ea;letter-spacing:-1px;">{{ total_load_7d }}</div>
+        <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">Carga 7d</div>
       </div>
     </div>
     <div style="overflow-x:auto;">
@@ -424,33 +719,34 @@
     </table>
     </div>
   </div>
+  {% endif %}{# end activities #}
 
   <!-- TENDENCIAS HISTÓRICAS (charts) — oculto temporalmente -->
   <div class="section" style="display:none">
-    <h2>📈 Tendencias Históricas (6 meses)</h2>
+    <h2>📈 {{ _('Tendencias Históricas (6 meses)') }}</h2>
     <div class="chart-grid">
       <div class="chart-box">
-        <h3>VO2 Máx</h3>
+        <h3>{{ _('VO2 Máx') }}</h3>
         <div class="chart-wrap"><canvas id="chartVo2"></canvas></div>
       </div>
       <div class="chart-box">
-        <h3>FC en Reposo</h3>
+        <h3>{{ _('FC en Reposo') }}</h3>
         <div class="chart-wrap"><canvas id="chartRhr"></canvas></div>
       </div>
       <div class="chart-box">
-        <h3>Kilómetros de Carrera / Mes</h3>
+        <h3>{{ _('Kilómetros de Carrera / Mes') }}</h3>
         <div class="chart-wrap"><canvas id="chartKm"></canvas></div>
       </div>
       <div class="chart-box">
-        <h3>Carga de Entrenamiento / Mes</h3>
+        <h3>{{ _('Carga de Entrenamiento / Mes') }}</h3>
         <div class="chart-wrap"><canvas id="chartLoad"></canvas></div>
       </div>
       <div class="chart-box">
-        <h3>Puntaje de Sueño Promedio</h3>
+        <h3>{{ _('Puntaje de Sueño Promedio') }}</h3>
         <div class="chart-wrap"><canvas id="chartSleep"></canvas></div>
       </div>
       <div class="chart-box">
-        <h3>Sesiones de Fuerza / Mes</h3>
+        <h3>{{ _('Sesiones de Fuerza / Mes') }}</h3>
         <div class="chart-wrap"><canvas id="chartStrength"></canvas></div>
       </div>
     </div>
@@ -458,7 +754,7 @@
 
   <!-- TABLA MENSUAL — oculto temporalmente -->
   <div class="section" style="display:none">
-    <h2>📅 Resumen Mensual</h2>
+    <h2>📅 {{ _('Resumen Mensual') }}</h2>
     <div style="overflow-x:auto;">
     <table>
       <thead><tr>
@@ -542,11 +838,11 @@
 
   <!-- OLD COACH IA SECTION REMOVED - now it's above -->
 
-  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:12px;color:#78350f;line-height:1.6;">
-    ⚠️ <strong>Aviso importante:</strong> Las recomendaciones generadas por Sento Run son <strong>orientativas</strong> y se basan en datos de Garmin Connect. <strong>No constituyen asesoramiento médico ni deportivo profesional.</strong> El uso de esta información es responsabilidad exclusiva del usuario. Consulta con un profesional de la salud o entrenador certificado antes de tomar decisiones de entrenamiento.
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:12px;color:#78350f;line-height:1.6;">
+    ⚠️ <strong>{{ _('Aviso:') }}</strong> {{ _('Las recomendaciones de Sento son') }} <strong>{{ _('orientativas') }}</strong> {{ _('y no sustituyen asesoramiento médico o deportivo profesional. Consulta con un profesional antes de modificar tu entrenamiento.') }}
   </div>
-  <p style="text-align:center;color:#bbb;font-size:12px;padding:8px 0;">
-    Sento Run · Datos de Garmin Connect · Actualización automática cada hora
+  <p style="text-align:center;color:#9ca3af;font-size:12px;padding:8px 0 4px;">
+    Sento Run · Coaching IA para corredores
   </p>
 </div>
 
@@ -608,7 +904,7 @@ new Chart(document.getElementById('chartStrength'), {
 const weeklyKmLabels = {{ weekly_km_chart_labels | tojson }};
 const weeklyKmData = {{ weekly_km_chart_data | tojson }};
 const weeklyPeak = {{ training_goal.weekly_peak_km }};
-new Chart(document.getElementById('chartWeeklyKm'), {
+if (document.getElementById('chartWeeklyKm')) { new Chart(document.getElementById('chartWeeklyKm'), {
   type: 'bar',
   data: {
     labels: weeklyKmLabels,
@@ -636,7 +932,7 @@ new Chart(document.getElementById('chartWeeklyKm'), {
       }
     }
   }
-});
+}); }
 
 // --- GOAL MODAL ---
 const hasExistingGoal = {{ 'true' if training_goal.race_type != 'Carrera' or training_goal.description else 'false' }};
@@ -648,7 +944,8 @@ function closeGoalModal() {
   document.getElementById('goalModal').style.display = 'none';
   document.getElementById('goalSaveStatus').style.display = 'none';
 }
-document.getElementById('goalModal').addEventListener('click', function(e) {
+const _goalModal = document.getElementById('goalModal');
+if (_goalModal) _goalModal.addEventListener('click', function(e) {
   if (e.target === this) closeGoalModal();
 });
 async function saveGoal() {
@@ -718,9 +1015,10 @@ loadChatHistory();
 })();
 
 
-document.getElementById('aiQuestion').addEventListener('input', function() {
-  document.getElementById('charCount').textContent = this.value.length + ' / 500';
-  // Auto-resize
+const _aiQuestion = document.getElementById('aiQuestion');
+if (_aiQuestion) _aiQuestion.addEventListener('input', function() {
+  const cc = document.getElementById('charCount');
+  if (cc) cc.textContent = this.value.length + ' / 500';
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
@@ -807,9 +1105,44 @@ async function askAI() {
   btn.disabled = false;
   input.focus();
 }
+
+// --- USER MENU DROPDOWN ---
+function toggleUserMenu() {
+  const m = document.getElementById('userMenu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('userMenuWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('userMenu').style.display = 'none';
+  }
+});
+
+function setLang(lang) {
+  fetch('/user/lang', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({lang: lang})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'ok') location.reload();
+  });
+}
 </script>
 
 {% if not _admin_viewing %}
+<!-- Toast: plan listo -->
+<div id="planToast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:white;border-radius:14px;padding:14px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.25);z-index:999;align-items:center;gap:14px;font-size:14px;max-width:90vw;">
+  <span>🎉 Tu plan de entrenamiento está listo</span>
+  <a href="/plan" style="background:#22c55e;color:white;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;">{{ _('Ver plan →') }}</a>
+  <button onclick="document.getElementById('planToast').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>
+</div>
+
+<!-- Toast: generando plan -->
+<div id="planGeneratingToast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f3460;color:white;border-radius:14px;padding:14px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.2);z-index:999;align-items:center;gap:12px;font-size:14px;max-width:90vw;">
+  <span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.9s linear infinite;flex-shrink:0;"></span>
+  <span>Sento está generando tu plan de entrenamiento… (2–3 min)</span>
+</div>
+
 <!-- Feedback floating button -->
 <style>
   .fab-feedback { position:fixed; bottom:24px; right:24px; width:48px; height:48px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; border:none; border-radius:50%; font-size:20px; cursor:pointer; box-shadow:0 4px 16px rgba(99,102,241,0.4); z-index:500; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,box-shadow 0.2s; }
@@ -839,7 +1172,7 @@ async function askAI() {
     <textarea id="fbText" placeholder="Escribe tu comentario…" maxlength="1000"></textarea>
     <div class="feedback-actions">
       <button class="btn-cancel-fb" onclick="toggleFeedback()">Cancelar</button>
-      <button class="btn-send-fb" id="fbSendBtn" onclick="sendFeedback()">Enviar</button>
+      <button class="btn-send-fb" id="fbSendBtn" onclick="sendFeedback()">{{ _("Enviar") }}</button>
     </div>
     <div class="fb-status" id="fbStatus"></div>
   </div>
@@ -936,7 +1269,7 @@ async function loadWeeklySummaries() {
   const content = document.getElementById('weeklySummaryContent');
   content.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">Cargando…</div>';
   try {
-    const resp = await fetch('/weekly-summaries');
+    const resp = await fetch('/weekly-summaries' + (_viewedUid ? '?uid=' + _viewedUid : ''));
     const data = await resp.json();
     const weeks = (data.weeks || []).slice(-12).reverse(); // last 12, most recent first
     if (!weeks.length) {
@@ -1054,5 +1387,78 @@ async function loadWeeklySummaries() {
   }
 }
 </script>
+
+<script>
+// Poll for plan generation if user just came from goal setup
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const generatingToast = document.getElementById('planGeneratingToast');
+  const readyToast = document.getElementById('planToast');
+
+  function showFlexToast(el) { el.style.display = 'flex'; }
+
+  function setHeroGenerating(on) {
+    const btns = document.getElementById('heroNoBtns');
+    if (!btns) return;
+    if (on) {
+      btns.innerHTML = `
+        <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:14px 24px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.85);">
+          <span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.9s linear infinite;flex-shrink:0;"></span>
+          Sento está preparando tu plan… esto tarda 1–2 min
+        </div>`;
+    }
+  }
+
+  function pollPlan() {
+    fetch('/plan/status').then(r => r.json()).then(data => {
+      if (data.ready) {
+        if (generatingToast) generatingToast.style.display = 'none';
+        if (readyToast) showFlexToast(readyToast);
+        history.replaceState(null, '', '/');
+      } else if (data.generating) {
+        if (generatingToast) showFlexToast(generatingToast);
+        setHeroGenerating(true);
+        setTimeout(pollPlan, 5000);
+      }
+    }).catch(() => setTimeout(pollPlan, 8000));
+  }
+
+  if (params.get('plan_generating') === '1') {
+    showFlexToast(generatingToast);
+    setHeroGenerating(true);
+    history.replaceState(null, '', '/');
+    setTimeout(pollPlan, 3000);
+  } else {
+    fetch('/plan/status').then(r => r.json()).then(data => {
+      if (data.generating) {
+        showFlexToast(generatingToast);
+        setHeroGenerating(true);
+        setTimeout(pollPlan, 5000);
+      }
+    }).catch(() => {});
+  }
+})();
+</script>
+<!-- BOTTOM NAV — móvil -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <a href="/" class="bnav-btn active">
+      <span class="bnav-icon">🏠</span>
+      Hoy
+    </a>
+    <a href="/plan" class="bnav-btn">
+      <span class="bnav-icon">📅</span>
+      Plan
+    </a>
+    <button class="bnav-btn" onclick="document.getElementById('aiChatSection')?.scrollIntoView({behavior:'smooth'});document.getElementById('aiQuestion')?.focus();">
+      <span class="bnav-icon">🏅</span>
+      Sento
+    </button>
+    <button class="bnav-btn" onclick="openWeeklySummaryModal()">
+      <span class="bnav-icon">📊</span>
+      Progreso
+    </button>
+  </div>
+</nav>
 </body>
 </html>

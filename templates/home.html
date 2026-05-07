@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sento Run — Tu entrenador de carrera con IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a14; color: white; overflow-x: hidden; }
+
+  /* ── NAVBAR ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(10,10,20,0.95), transparent);
+    backdrop-filter: blur(4px);
+  }
+  .nav-brand { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+  .btn-join {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white; border: none; border-radius: 30px;
+    padding: 10px 24px; font-size: 14px; font-weight: 700;
+    cursor: pointer; text-decoration: none; display: inline-block;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(34,197,94,0.35);
+  }
+  .btn-join:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(34,197,94,0.5); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+    background: radial-gradient(ellipse at 60% 40%, #1a1a40 0%, #0a0a14 65%);
+  }
+
+  /* Animated background lines (track lanes) */
+  .track-lines {
+    position: absolute; inset: 0; overflow: hidden; opacity: 0.07;
+  }
+  .track-lines::before {
+    content: '';
+    position: absolute; bottom: -20%; left: -20%; right: -20%;
+    height: 160%; border: 2px solid #f97316;
+    border-radius: 50%;
+    animation: pulse-track 6s ease-in-out infinite;
+  }
+  .track-lines::after {
+    content: '';
+    position: absolute; bottom: -35%; left: -35%; right: -35%;
+    height: 200%; border: 2px solid #22c55e;
+    border-radius: 50%;
+    animation: pulse-track 6s ease-in-out infinite 1.5s;
+  }
+  @keyframes pulse-track {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.03); opacity: 1; }
+  }
+
+  /* Floating particles */
+  .particles { position: absolute; inset: 0; pointer-events: none; }
+  .particle {
+    position: absolute; width: 3px; height: 3px; border-radius: 50%;
+    background: #22c55e; opacity: 0;
+    animation: float-up var(--dur, 8s) linear infinite var(--delay, 0s);
+  }
+  @keyframes float-up {
+    0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.3; }
+    100% { transform: translateY(-100px) translateX(var(--drift, 20px)); opacity: 0; }
+  }
+
+  .hero-content {
+    position: relative; z-index: 2; text-align: center;
+    max-width: 760px; padding: 0 24px; padding-top: 80px;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.35);
+    border-radius: 30px; padding: 6px 16px; font-size: 12px; font-weight: 600;
+    color: #fdba74; margin-bottom: 24px; letter-spacing: 0.3px;
+  }
+  .hero-badge span { width: 6px; height: 6px; border-radius: 50%; background: #f97316; display: inline-block; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .hero h1 {
+    font-size: clamp(38px, 7vw, 72px); font-weight: 900; line-height: 1.05;
+    letter-spacing: -2px; margin-bottom: 20px;
+  }
+  .hero h1 .accent { color: #22c55e; }
+  .hero h1 .accent2 { color: #f97316; }
+
+  .hero-sub {
+    font-size: clamp(15px, 2.5vw, 18px); color: rgba(255,255,255,0.6);
+    line-height: 1.7; max-width: 560px; margin: 0 auto 36px;
+  }
+
+  .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-hero-primary {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white; border: none; border-radius: 30px;
+    padding: 16px 36px; font-size: 16px; font-weight: 800;
+    cursor: pointer; text-decoration: none; display: inline-block;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 6px 28px rgba(34,197,94,0.4);
+    letter-spacing: -0.2px;
+  }
+  .btn-hero-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 36px rgba(34,197,94,0.5); }
+  .btn-hero-secondary {
+    background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.85);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 30px; padding: 16px 32px; font-size: 15px; font-weight: 600;
+    cursor: pointer; text-decoration: none; display: inline-block;
+    transition: background 0.2s;
+  }
+  .btn-hero-secondary:hover { background: rgba(255,255,255,0.12); }
+
+  /* Stats strip */
+  .stats-strip {
+    display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
+    margin-top: 56px; padding-top: 40px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .stat { text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 900; color: #22c55e; letter-spacing: -1px; }
+  .stat-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── FEATURES ── */
+  .features-section {
+    padding: 96px 24px; max-width: 1100px; margin: 0 auto;
+  }
+  .section-label { font-size: 12px; font-weight: 700; color: #f97316; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; text-align: center; }
+  .section-title { font-size: clamp(26px, 4vw, 40px); font-weight: 900; text-align: center; margin-bottom: 12px; letter-spacing: -1px; }
+  .section-sub { font-size: 16px; color: rgba(255,255,255,0.5); text-align: center; max-width: 500px; margin: 0 auto 56px; line-height: 1.6; }
+
+  .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 768px) { .features-grid { grid-template-columns: 1fr; } }
+  @media (min-width: 769px) and (max-width: 1024px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .feature-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px; padding: 28px 24px;
+    transition: border-color 0.3s, transform 0.3s, background 0.3s;
+  }
+  .feature-card:hover { border-color: rgba(249,115,22,0.4); background: rgba(249,115,22,0.07); transform: translateY(-4px); }
+  .feature-icon { font-size: 32px; margin-bottom: 14px; }
+  .feature-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .feature-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.65; }
+
+  /* ── HOW IT WORKS ── */
+  .how-section {
+    padding: 96px 24px; background: rgba(249,115,22,0.04);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .steps-grid { display: flex; flex-direction: column; gap: 0; max-width: 620px; margin: 0 auto; }
+  .step-item { display: flex; gap: 20px; align-items: flex-start; padding: 24px 0; position: relative; }
+  .step-item:not(:last-child)::after {
+    content: ''; position: absolute; left: 19px; top: 60px; bottom: 0;
+    width: 2px; background: rgba(249,115,22,0.2);
+  }
+  .step-num {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; position: relative; z-index: 1;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 15px; font-weight: 800; margin-bottom: 5px; }
+  .step-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.65; }
+
+  /* ── QUOTE ── */
+  .quote-section {
+    padding: 96px 24px; text-align: center;
+    background: radial-gradient(ellipse at center, rgba(34,197,94,0.08) 0%, transparent 70%);
+  }
+  .quote-text {
+    font-size: clamp(20px, 3.5vw, 32px); font-weight: 700; line-height: 1.4;
+    max-width: 720px; margin: 0 auto 16px; letter-spacing: -0.5px;
+    color: rgba(255,255,255,0.9);
+  }
+  .quote-text em { color: #22c55e; font-style: normal; }
+  .quote-source { font-size: 13px; color: rgba(255,255,255,0.35); }
+
+  /* ── CTA BOTTOM ── */
+  .cta-section {
+    padding: 96px 24px; text-align: center;
+    background: linear-gradient(135deg, rgba(249,115,22,0.1), rgba(34,197,94,0.06));
+  }
+  .cta-section h2 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; letter-spacing: -1px; margin-bottom: 14px; }
+  .cta-section p { font-size: 15px; color: rgba(255,255,255,0.5); margin-bottom: 32px; }
+
+  /* ── FOOTER ── */
+  footer { padding: 24px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.2); border-top: 1px solid rgba(255,255,255,0.06); }
+
+  /* Running pace animation */
+  .pace-ticker {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; color: #4ade80;
+    font-weight: 600; margin-top: 28px; font-variant-numeric: tabular-nums;
+  }
+  .pace-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: blink 1s infinite; }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .stats-strip { gap: 28px; }
+    .step-item:not(:last-child)::after { left: 19px; }
+  }
+
+  /* ── SCROLL SNAP — desktop only ── */
+  @media (min-width: 769px) {
+    html { height: 100%; overflow: hidden; }
+    body {
+      height: 100vh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+    }
+
+    .hero,
+    .features-section,
+    .how-section,
+    .final-section {
+      scroll-snap-align: start;
+      min-height: 100vh;
+    }
+
+    /* Center features content vertically */
+    .features-section {
+      padding: 72px 24px 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .features-section .section-sub { margin-bottom: 40px; }
+
+    /* Center how-it-works vertically */
+    .how-section {
+      padding: 72px 24px 60px;
+      display: flex;
+      align-items: center;
+    }
+    .how-section > div { width: 100%; }
+
+    /* Final section: stack quote + cta + footer centered */
+    .final-section {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .final-section .quote-section,
+    .final-section .cta-section {
+      padding: 60px 24px 40px;
+    }
+    .final-section footer { margin-top: auto; }
+  }
+</style>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<meta property="og:image" content="/static/og-image.png">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-brand"><span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento Run" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span> Sento Run</div>
+  <!-- <a href="/auth/login" class="btn-join">Unirme →</a>-->
+  {% include "_lang_toggle.html" %}
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="track-lines"></div>
+
+  <!-- Particles -->
+  <div class="particles" id="particles"></div>
+
+  <div class="hero-content">
+    <!--<div class="hero-badge">
+      <span></span> Entrenador IA para corredores
+    </div> -->
+
+    <h1>
+      {{ _("Corre más inteligente.") }}<br>
+      <span class="accent">{{ _("Llega más lejos.") }}</span>
+    </h1>
+
+    <p class="hero-sub">
+      {{ _("Sento analiza tus datos de entrenamiento y genera un plan personalizado semana a semana.") }}
+      {{ _("Sin suposiciones — solo ciencia del deporte adaptada a ti.") }}
+    </p>
+
+    <div class="hero-cta">
+      <a href="/auth/login" class="btn-hero-primary">🚀 {{ _("Crear mi plan gratis") }}</a>
+      <a href="#como-funciona" class="btn-hero-secondary">{{ _("Ver cómo funciona") }}</a>
+    </div>
+
+    <div class="pace-ticker">
+      <div class="pace-dot"></div>
+      <span id="paceDisplay">4:52 /km</span> · {{ _("Tu ritmo meta te espera") }}
+    </div>
+
+    <div class="stats-strip">
+      <div class="stat">
+        <div class="stat-num">10K</div>
+        <div class="stat-label">a Maratón</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">IA</div>
+        <div class="stat-label">Gemini powered</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">100%</div>
+        <div class="stat-label">Personalizado</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">∞</div>
+        <div class="stat-label">Planes generados</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section">
+  <div class="section-label">{{ _("Por qué Sento") }}</div>
+  <h2 class="section-title">{{ _("Entrenamiento que evoluciona contigo") }}</h2>
+  <p class="section-sub">No es una app de planes genéricos. Sento aprende tu ritmo, tu historial y tu vida para darte exactamente lo que necesitas.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🎯</div>
+      <div class="feature-title">Plan semana a semana</div>
+      <div class="feature-desc">Cada semana diseñada con fases de base, resistencia, pico y tapering. Tu plan completo de aquí al día de la carrera.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧠</div>
+      <div class="feature-title">IA que te conoce</div>
+      <div class="feature-desc">Sento analiza tu nivel actual, tiempos de referencia, disponibilidad y preferencias para construir tu plan ideal.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">❤️</div>
+      <div class="feature-title">Zonas de frecuencia cardíaca</div>
+      <div class="feature-desc">Cada entrenamiento incluye la zona de FC objetivo. Fácil, tempo, intervalos — entrenamiento estructurado de verdad.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📈</div>
+      <div class="feature-title">Progresión inteligente</div>
+      <div class="feature-desc">Aumento del 10% semanal máximo, semanas de recuperación cada 3-4, tapering científico antes del evento.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💪</div>
+      <div class="feature-title">Fuerza integrada</div>
+      <div class="feature-desc">Ejercicios de tren inferior y core incorporados al plan para reducir lesiones y mejorar tu economía de carrera.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💬</div>
+      <div class="feature-title">Pregúntale a Sento</div>
+      <div class="feature-desc">¿Cómo hidratarte en carrera? ¿Qué comer el día antes? Sento responde cualquier duda sobre tu entrenamiento.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="como-funciona">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div class="section-label">{{ _("Proceso") }}</div>
+    <h2 class="section-title">{{ _("De cero a tu plan en minutos") }}</h2>
+    <p class="section-sub">Sin configuraciones complicadas. Solo cuéntale a Sento tu objetivo.</p>
+
+    <div class="steps-grid">
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Crea tu cuenta con Google</div>
+          <div class="step-desc">Un clic para entrar. Sin contraseñas adicionales.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Completa tu perfil de atleta</div>
+          <div class="step-desc">Cuéntanos tu nivel, tiempos de referencia y disponibilidad. Toma 2 minutos.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Define tu objetivo con Sento</div>
+          <div class="step-desc">Chatea con Sento: dile tu distancia objetivo, fecha del evento y preferencias. Él hace el resto.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Recibe tu plan personalizado</div>
+          <div class="step-desc">Un plan completo semana a semana, con workouts diarios, zonas de FC y volumen progresivo.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Entrena y consulta a Sento</div>
+          <div class="step-desc">Importa tus actividades, sigue tu progreso y pregúntale cualquier duda de entrenamiento.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL SECTION: Quote + CTA + Footer -->
+<section class="final-section">
+
+  <!-- QUOTE -->
+  <div class="quote-section">
+    <div class="quote-text">
+      "El secreto del maratonista no es correr más — es <em>entrenar más inteligente</em> que ayer."
+    </div>
+    <div class="quote-source">Principio de periodización del entrenamiento de resistencia</div>
+  </div>
+
+  <!-- CTA BOTTOM -->
+  <div class="cta-section">
+    <h2>{{ _("¿Listo para tu próxima carrera?") }}</h2>
+    <p>{{ _("Crea tu plan personalizado en minutos. Gratis.") }}</p>
+    <a href="/auth/login" class="btn-hero-primary" style="font-size:16px;padding:18px 44px;">🚀 {{ _("Comenzar ahora") }}</a>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2026 Sento Run · {{ _("Entrenamiento inteligente para corredores") }}
+  </footer>
+
+</section>
+
+<script>
+  // Generate floating particles
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.cssText = `
+      left: ${Math.random() * 100}%;
+      --dur: ${6 + Math.random() * 10}s;
+      --delay: ${-Math.random() * 12}s;
+      --drift: ${(Math.random() - 0.5) * 80}px;
+      width: ${2 + Math.random() * 3}px;
+      height: ${2 + Math.random() * 3}px;
+      background: ${Math.random() > 0.5 ? '#22c55e' : '#f97316'};
+    `;
+    container.appendChild(p);
+  }
+
+  // Animate pace display
+  const paces = ['4:52 /km', '5:20 /km', '6:10 /km', '5:45 /km', '3:40 /km'];
+  let pi = 0;
+  setInterval(() => {
+    pi = (pi + 1) % paces.length;
+    const el = document.getElementById('paceDisplay');
+    el.style.opacity = '0';
+    setTimeout(() => { el.textContent = paces[pi]; el.style.opacity = '1'; }, 300);
+  }, 2500);
+  document.getElementById('paceDisplay').style.transition = 'opacity 0.3s';
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import csv
+import datetime as _dt
 import hashlib
 import io
 import json
@@ -64,12 +65,32 @@ def _get_training_plan(user_id: str) -> dict | None:
     return user_doc.get('training_plan')
 
 
+def _get_regen_status(user_doc: dict, user_tz: str | None) -> tuple[bool, str]:
+    """Returns (can_regenerate, next_regen_date_str). Premium users can always regenerate."""
+    if user_doc.get('is_premium'):
+        return True, ''
+    plan = user_doc.get('training_plan_schedule') or {}
+    generated_at = plan.get('generated_at', '')
+    this_month = today_tz(user_tz).strftime('%Y-%m')
+    if generated_at and generated_at[:7] == this_month:
+        today_d = today_tz(user_tz)
+        next_month = (today_d.replace(day=1) + _dt.timedelta(days=32)).replace(day=1)
+        return False, next_month.strftime('%d/%m/%Y')
+    return True, ''
+
+
 _ACTIVITY_TYPE_MAP = {
     'Correr': {'typeId': 1, 'typeKey': 'running'},
+    'Carrera': {'typeId': 1, 'typeKey': 'running'},
     'Entrenamiento en cinta': {'typeId': 1, 'typeKey': 'treadmill_running'},
     'Carrera en cinta': {'typeId': 1, 'typeKey': 'treadmill_running'},
+    'Trail running': {'typeId': 1, 'typeKey': 'trail_running'},
+    'Carrera de trail': {'typeId': 1, 'typeKey': 'trail_running'},
+    'Virtual Running': {'typeId': 1, 'typeKey': 'virtual_run'},
     'Ciclismo': {'typeId': 2, 'typeKey': 'cycling'},
+    'Ciclismo en ruta': {'typeId': 2, 'typeKey': 'cycling'},
     'Ciclismo indoor': {'typeId': 25, 'typeKey': 'indoor_cycling'},
+    'Ciclismo en sala': {'typeId': 25, 'typeKey': 'indoor_cycling'},
     'Natación': {'typeId': 4, 'typeKey': 'lap_swimming'},
     'Natación en aguas abiertas': {'typeId': 4, 'typeKey': 'open_water_swimming'},
     'Caminar': {'typeId': 9, 'typeKey': 'walking'},
@@ -160,43 +181,25 @@ def _parse_csv_row(row: dict) -> dict | None:
     }
 
 
-def _regenerate_ai_only(user_id: str, user_name: str):
-    """Generates AI prescription from existing stored data — no Garmin API call."""
-    from garmin_onboarding import refresh_start, refresh_progress, refresh_done, refresh_error
-    from ai_advisor import generate_daily_recommendation
-    refresh_start(user_id, "Analizando actividades importadas...", "day")
+def _recompute_summaries_only(user_id: str):
+    """Recomputes weekly summaries from existing stored data — no Garmin API, no AI call."""
+    from garmin_onboarding import refresh_start, refresh_done, refresh_error
+    refresh_start(user_id, "Procesando actividades importadas...", "day")
     try:
         raw_data = _load_data(user_id)
         if not raw_data:
             refresh_error(user_id, "No hay datos disponibles.")
             return
-        refresh_progress(user_id, 50, "Generando prescripción del día...")
-        goal = _get_goal(user_id)
-        coaching_rules = firestore_helper.get_coaching_rules()
-        t_plan = _get_training_plan(user_id)
         try:
             from weekly_summarizer import compute_weekly_summaries
-            weekly_summaries = compute_weekly_summaries(raw_data)
-            firestore_helper.save_weekly_summaries(user_id, weekly_summaries)
+            summaries = compute_weekly_summaries(raw_data)
+            firestore_helper.save_weekly_summaries(user_id, summaries)
         except Exception as e:
-            weekly_summaries = {}
-            logger.error(f"Weekly summary error in _regenerate_ai_only for {user_id}: {e}")
-        dashboard_data = process_dashboard_data(raw_data, training_goal=goal)
-        ai_html = generate_daily_recommendation(
-            dashboard_data, user_name=user_name,
-            training_goal=goal, coaching_rules=coaching_rules, training_plan=t_plan,
-            raw_data=raw_data, weekly_summaries=weekly_summaries
-        )
-        if ai_html:
-            raw_data.setdefault("metadata", {})
-            raw_data["metadata"]["ai_recommendation"] = ai_html
-            raw_data["metadata"]["ai_recommendation_date"] = now_cdmx().isoformat()
-            _save_data(user_id, raw_data)
-        refresh_progress(user_id, 100, "¡Prescripción lista!")
-        refresh_done(user_id)
+            logger.error(f"Weekly summary error in _recompute_summaries_only for {user_id}: {e}")
+        refresh_done(user_id, "Actividades cargadas.")
     except Exception as e:
-        refresh_error(user_id, f"Error al generar prescripción: {str(e)}")
-        logger.error(f"AI regen failed for {user_id}: {e}")
+        refresh_error(user_id, f"Error: {str(e)}")
+        logger.error(f"Recompute summaries failed for {user_id}: {e}")
 
 
 def do_refresh(user_id: str, user_name: str = "Atleta", training_goal: dict | None = None) -> tuple:
@@ -206,7 +209,6 @@ def do_refresh(user_id: str, user_name: str = "Atleta", training_goal: dict | No
     Extracted here so both /refresh-today and the admin force-refresh can call it.
     """
     from export_data import init_api, fetch_data_current_month
-    from ai_advisor import generate_daily_recommendation
 
     tmp_dir = tempfile.mkdtemp()
     try:
@@ -218,7 +220,6 @@ def do_refresh(user_id: str, user_name: str = "Atleta", training_goal: dict | No
         if not api:
             return jsonify({"error": "No se pudo conectar a Garmin. El token puede haber expirado."}), 500
 
-        # Refresh tokens back to GCS in case they were silently rotated
         gcs.upload_directory(tmp_dir, token_prefix)
 
         existing_data = _load_data(user_id)
@@ -226,35 +227,14 @@ def do_refresh(user_id: str, user_name: str = "Atleta", training_goal: dict | No
 
         try:
             from weekly_summarizer import compute_weekly_summaries
-            weekly_summaries = compute_weekly_summaries(new_data)
-            firestore_helper.save_weekly_summaries(user_id, weekly_summaries)
+            summaries = compute_weekly_summaries(new_data)
+            firestore_helper.save_weekly_summaries(user_id, summaries)
         except Exception as e:
-            weekly_summaries = {}
             logger.error(f"Weekly summary error during refresh for {user_id}: {e}")
-
-        try:
-            goal = training_goal or _get_goal(user_id)
-            coaching_rules = firestore_helper.get_coaching_rules()
-            t_plan = _get_training_plan(user_id)
-            dashboard_data = process_dashboard_data(new_data, training_goal=goal)
-            ai_html = generate_daily_recommendation(
-                dashboard_data, user_name=user_name, training_goal=goal,
-                coaching_rules=coaching_rules, training_plan=t_plan,
-                raw_data=new_data, weekly_summaries=weekly_summaries
-            )
-            if ai_html:
-                if "metadata" not in new_data:
-                    new_data["metadata"] = {}
-                new_data["metadata"]["ai_recommendation"] = ai_html
-                new_data["metadata"]["ai_recommendation_date"] = now_cdmx().isoformat()
-        except Exception as e:
-            logger.error(f"AI recommendation error during refresh for {user_id}: {e}")
 
         _save_data(user_id, new_data)
         firestore_helper.upsert_user(user_id, {'last_refresh': now_cdmx().isoformat()})
-
-        ai_rec = new_data.get("metadata", {}).get("ai_recommendation", "")
-        return jsonify({"status": "success", "message": "Datos actualizados.", "ai_recommendation": ai_rec}), 200
+        return jsonify({"status": "success", "message": "Datos actualizados."}), 200
 
     except Exception as e:
         logger.error(f"Refresh error for {user_id}: {e}")
@@ -272,14 +252,17 @@ def _count_today_activities(data: dict | None, today_str: str) -> int:
     return sum(1 for a in acts if a.get("startTimeLocal", "")[:10] == today_str)
 
 
-def _refresh_background(user_id: str, user_name: str):
+def _refresh_background(user_id: str, user_name: str, wait_before_start: int = 0):
     """Runs a Garmin incremental refresh in a background thread (no Flask context needed)."""
     from garmin_onboarding import is_refreshing, refresh_start, refresh_progress, refresh_done, refresh_error
     if is_refreshing(user_id):
         logger.info(f"Auto-refresh skipped for {user_id}: already running.")
         return
+    if wait_before_start:
+        import time as _time
+        logger.info(f"Auto-restart: waiting {wait_before_start}s before Garmin call for {user_id}")
+        _time.sleep(wait_before_start)
     from export_data import init_api, fetch_data_current_month
-    from ai_advisor import generate_daily_recommendation
     tmp_dir = tempfile.mkdtemp()
     refresh_start(user_id, "Actualizando datos del día...", "day")
     try:
@@ -294,55 +277,16 @@ def _refresh_background(user_id: str, user_name: str):
             logger.warning(f"Auto-refresh: persistent 429 for {user_id} — flagged for reconnect.")
             return
         gcs.upload_directory(tmp_dir, token_prefix)
-        refresh_progress(user_id, 30, "Descargando datos del día...")
+        refresh_progress(user_id, 40, "Descargando datos del día...")
         existing_data = _load_data(user_id)
-        today_str = now_cdmx().date().isoformat()
-        acts_before = _count_today_activities(existing_data, today_str)
-        has_existing_ai = bool(existing_data and existing_data.get("metadata", {}).get("ai_recommendation"))
-        prescription_date = (existing_data or {}).get("metadata", {}).get("ai_recommendation_date", "")[:10]
-        prescription_is_today = prescription_date == today_str
         new_data = fetch_data_current_month(api, existing_data)
-        acts_after = _count_today_activities(new_data, today_str)
-        new_activities_today = acts_after > acts_before
-
-        # Regenerate AI only if: no prescription yet, OR prescription is from a previous day, OR new activities appeared today
-        needs_ai = not has_existing_ai or not prescription_is_today or new_activities_today
-
+        refresh_progress(user_id, 80, "Calculando resúmenes semanales...")
         try:
             from weekly_summarizer import compute_weekly_summaries
-            weekly_summaries = compute_weekly_summaries(new_data)
-            firestore_helper.save_weekly_summaries(user_id, weekly_summaries)
+            summaries = compute_weekly_summaries(new_data)
+            firestore_helper.save_weekly_summaries(user_id, summaries)
         except Exception as e:
-            weekly_summaries = {}
             logger.error(f"Weekly summary error during auto-refresh for {user_id}: {e}")
-
-        if needs_ai:
-            refresh_progress(user_id, 80, "Generando prescripción del día...")
-            try:
-                goal = _get_goal(user_id)
-                coaching_rules = firestore_helper.get_coaching_rules()
-                t_plan = _get_training_plan(user_id)
-                dashboard_data = process_dashboard_data(new_data, training_goal=goal)
-                ai_html = generate_daily_recommendation(
-                    dashboard_data, user_name=user_name, training_goal=goal,
-                    coaching_rules=coaching_rules, training_plan=t_plan,
-                    raw_data=new_data, weekly_summaries=weekly_summaries
-                )
-                if ai_html:
-                    if "metadata" not in new_data:
-                        new_data["metadata"] = {}
-                    new_data["metadata"]["ai_recommendation"] = ai_html
-                    new_data["metadata"]["ai_recommendation_date"] = now_cdmx().isoformat()
-            except Exception as e:
-                logger.error(f"AI error during auto-refresh for {user_id}: {e}")
-        else:
-            refresh_progress(user_id, 80, "Prescripción del día ya está al día.")
-            logger.info(f"Auto-refresh: prescription is current for {user_id} (date={prescription_date}, new_acts={new_activities_today}), skipping AI.")
-            # Preserve existing AI recommendation in new_data
-            if "metadata" not in new_data:
-                new_data["metadata"] = {}
-            new_data["metadata"]["ai_recommendation"] = existing_data["metadata"]["ai_recommendation"]
-            new_data["metadata"]["ai_recommendation_date"] = existing_data["metadata"].get("ai_recommendation_date", "")
         _save_data(user_id, new_data)
         firestore_helper.upsert_user(user_id, {'last_refresh': now_cdmx().isoformat()})
         refresh_done(user_id, "Datos del día actualizados.")
@@ -354,9 +298,247 @@ def _refresh_background(user_id: str, user_name: str):
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
+def _add_sections(dashboard_data: dict, user_doc: dict = None) -> dict:
+    """Injects global sections_disabled config into dashboard_data."""
+    sections = firestore_helper.get_global_sections()
+    sections.setdefault('snapshot', True)
+    dashboard_data['sections_disabled'] = sections
+    return dashboard_data
+
+
+_DISTANCE_MAP = [
+    ('medio', 21.1), ('media', 21.1), ('half', 21.1), ('21', 21.1),
+    ('maratón', 42.2), ('maraton', 42.2), ('marathon', 42.2), ('42', 42.2),
+    ('10k', 10.0), ('10 k', 10.0), ('10km', 10.0),
+    ('5k', 5.0), ('5 k', 5.0), ('5km', 5.0),
+]
+_DAYS_ES_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+_MONTHS_ES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+
+def _add_race_hero(dashboard_data: dict, user_doc: dict, user_tz: str | None) -> dict:
+    """Adds race hero card fields to dashboard_data: image, countdown, distance, time goal, mini-plan."""
+    from datetime import date as _date_cls, timedelta as _td
+    from tz_utils import today_tz as _today_tz
+
+    goal = dashboard_data.get('training_goal', {})
+
+    # --- Image URL and name from joined race ---
+    race_id = goal.get('race_id')
+    race_image_url = None
+    race_display_name = None
+    if race_id:
+        try:
+            race_doc = firestore_helper.get_race(race_id)
+            if race_doc:
+                if race_doc.get('image_url'):
+                    race_image_url = race_doc['image_url']
+                if race_doc.get('name'):
+                    race_display_name = race_doc['name']
+        except Exception:
+            pass
+    dashboard_data['race_image_url'] = race_image_url
+    dashboard_data['race_display_name'] = race_display_name
+
+    # --- Days until race + formatted date ---
+    event_date_str = goal.get('event_date', '')
+    days_until_race = None
+    event_date_display = ''
+    if event_date_str:
+        try:
+            ed = _date_cls.fromisoformat(event_date_str)
+            today = _today_tz(user_tz)
+            days_until_race = max(0, (ed - today).days)
+            event_date_display = f"{_DAYS_ES_LONG[ed.weekday()]}, {ed.day} {_MONTHS_ES_SHORT[ed.month - 1]} {ed.year}"
+        except (ValueError, TypeError):
+            pass
+    dashboard_data['days_until_race'] = days_until_race
+    dashboard_data['event_date_display'] = event_date_display
+
+    # --- Race distance + target finish time ---
+    race_type_lower = goal.get('race_type', '').lower()
+    race_distance_km = None
+    for key, val in _DISTANCE_MAP:
+        if key in race_type_lower:
+            race_distance_km = val
+            break
+    target_time_str = ''
+    if race_distance_km:
+        pace_min = goal.get('target_pace_min')
+        pace_sec = goal.get('target_pace_sec', 0) or 0
+        if pace_min:
+            total_mins = (int(pace_min) + int(pace_sec) / 60.0) * race_distance_km
+            h = int(total_mins // 60)
+            m = int(total_mins % 60)
+            target_time_str = f"Sub {h}h {m:02d}min" if h else f"Sub {m}min"
+    dashboard_data['race_distance_km'] = race_distance_km
+    dashboard_data['target_time_str'] = target_time_str
+
+    # --- Current week mini-plan from training_plan_schedule ---
+    plan_current_week_workouts = None
+    plan_current_week_num = None
+    plan_total_weeks = None
+    plan_schedule = (user_doc or {}).get('training_plan_schedule')
+    if plan_schedule:
+        try:
+            plan_start_str = plan_schedule.get('plan_start_date', '')
+            total_weeks = plan_schedule.get('total_weeks', 0)
+            plan_total_weeks = total_weeks
+            if plan_start_str:
+                today = _today_tz(user_tz)
+                plan_start = _date_cls.fromisoformat(plan_start_str)
+                delta = (today - plan_start).days
+                if delta >= 0:
+                    w_num = min(delta // 7 + 1, total_weeks or 99)
+                    plan_current_week_num = w_num
+                    for week in plan_schedule.get('weeks', []):
+                        if week.get('week_number') == w_num:
+                            plan_current_week_workouts = week.get('workouts', [])
+                            break
+        except (ValueError, TypeError):
+            pass
+    # --- Match actual activities to each day of the current week ---
+    _DAY_OFFSETS = {
+        'lunes': 0, 'martes': 1, 'miércoles': 2, 'miercoles': 2,
+        'jueves': 3, 'viernes': 4, 'sábado': 5, 'sabado': 5, 'domingo': 6,
+    }
+    _ACT_ICONS = {
+        'running': '🏃', 'trail_running': '🏔', 'cycling': '🚴',
+        'indoor_cycling': '🚴', 'mountain_biking': '🚵', 'strength_training': '💪',
+        'swimming': '🏊', 'open_water_swimming': '🏊', 'walking': '🚶',
+        'yoga': '🧘', 'fitness_equipment': '🏋', 'elliptical': '🔄',
+        'cardio': '🤸', 'hiking': '🥾', 'rowing': '🚣',
+    }
+    def _act_icon(type_key: str) -> str:
+        tk = (type_key or '').lower()
+        for k, v in _ACT_ICONS.items():
+            if k in tk:
+                return v
+        return '⚡'
+
+    def _build_act_detail(act: dict) -> dict:
+        tk = (act.get('activityType', {}).get('typeKey') or '').lower()
+        km = round(act.get('distance', 0) / 1000.0, 1) if act.get('distance') else None
+        spd = act.get('averageSpeed', 0) or 0
+        pace = None
+        if spd > 0 and 'run' in tk:
+            ps = 1000 / spd
+            pace = f"{int(ps // 60)}:{int(ps % 60):02d}"
+        dur_sec = act.get('duration', 0) or 0
+        dur_min = int(dur_sec / 60) if dur_sec else None
+        name = (act.get('activityName') or tk.replace('_', ' ').title() or 'Actividad').strip()
+        return {'type_key': tk, 'icon': _act_icon(tk), 'km': km,
+                'pace': pace, 'duration_min': dur_min, 'name': name}
+
+    week_has_actuals = False
+    if plan_current_week_workouts and plan_start_str:
+        try:
+            plan_start = _date_cls.fromisoformat(plan_start_str)
+            plan_week_start = plan_start + _td(weeks=plan_current_week_num - 1)
+            today = _today_tz(user_tz)
+
+            acts_by_date: dict = {}
+            for act in (dashboard_data.get('recent_activities') or []):
+                d = (act.get('startTimeLocal') or '')[:10]
+                if d:
+                    acts_by_date.setdefault(d, []).append(act)
+
+            for w in plan_current_week_workouts:
+                day_name = (w.get('day_name') or '').lower().strip()
+                offset = _DAY_OFFSETS.get(day_name)
+                w['_acts'] = []
+                w['_primary_act'] = None
+                w['_actual_km'] = None
+                w['_status'] = None
+                if offset is None:
+                    continue
+                day_date = plan_week_start + _td(days=offset)
+                if day_date > today:
+                    continue
+                raw_acts = acts_by_date.get(day_date.isoformat(), [])
+                if not raw_acts:
+                    continue
+
+                week_has_actuals = True
+                details = [_build_act_detail(a) for a in raw_acts]
+                w['_acts'] = details
+
+                # Primary: prefer running for run days, then first activity
+                planned_type = (w.get('type') or '').lower()
+                run_acts = [d for d in details if 'run' in d['type_key']]
+                strength_acts = [d for d in details if 'strength' in d['type_key']]
+                if 'cross' in planned_type or 'strength' in planned_type:
+                    primary = (strength_acts or details)[0]
+                elif run_acts:
+                    primary = run_acts[0]
+                else:
+                    primary = details[0]
+                w['_primary_act'] = primary
+
+                # Status based on primary running km vs planned km
+                planned_km = float(w.get('km') or 0)
+                if planned_km > 0 and primary.get('km'):
+                    ratio = primary['km'] / planned_km
+                    w['_actual_km'] = primary['km']
+                    w['_status'] = 'green' if ratio >= 0.9 else ('yellow' if ratio >= 0.7 else 'white')
+                elif primary.get('km'):
+                    w['_actual_km'] = primary['km']
+                    w['_status'] = 'white'
+                else:
+                    w['_status'] = 'green'  # strength/cross with no distance = completed
+        except Exception:
+            pass
+
+    dashboard_data['plan_current_week_workouts'] = plan_current_week_workouts
+    dashboard_data['plan_current_week_num'] = plan_current_week_num
+    dashboard_data['plan_total_weeks'] = plan_total_weeks
+    dashboard_data['has_plan_schedule'] = bool(plan_schedule)
+    dashboard_data['week_has_actuals'] = week_has_actuals
+
+    # If plan exists but goal_configured is False (e.g. goal save failed),
+    # fill goal fields from the plan's metadata so the hero card renders correctly.
+    if plan_schedule and not dashboard_data.get('goal_configured'):
+        goal = dashboard_data.get('training_goal', {}) or {}
+        if not goal.get('target_pace_str') and plan_schedule.get('goal_pace'):
+            goal['target_pace_str'] = plan_schedule['goal_pace']
+        if not goal.get('race_type') and plan_schedule.get('title'):
+            goal['race_type'] = plan_schedule['title']
+        if not goal.get('event_date') and plan_schedule.get('event_date'):
+            goal['event_date'] = plan_schedule['event_date']
+        dashboard_data['training_goal'] = goal
+        dashboard_data['goal_configured'] = True
+
+    return dashboard_data
+
+
+@dashboard_bp.route('/races/<race_id>/image')
+def race_image_proxy(race_id: str):
+    from flask import Response as _Resp
+    from gcs_helper import GCSHelper as _GCS
+    race = firestore_helper.get_race(race_id)
+    if not race or not race.get('image_url'):
+        abort(404)
+    bucket = os.environ.get('GARMIN_BUCKET', 'garmin-dashboard-data')
+    gcs = _GCS(bucket)
+    data = gcs.download_bytes(f"race_images/{race_id}")
+    if not data:
+        abort(404)
+    return _Resp(data, content_type=race.get('image_content_type', 'image/jpeg'))
+
+
 @dashboard_bp.route('/')
-@login_required
 def index():
+    # Unauthenticated users see the landing page
+    if 'user_id' not in session:
+        return render_template('home.html')
+    # Profile assessment: check once per session
+    if not session.get('has_profile_assessment'):
+        if firestore_helper.get_latest_assessment(session['user_id']):
+            session['has_profile_assessment'] = True
+        else:
+            return redirect(url_for('onboarding.profile_setup'))
+    if not session.get('garmin_connected'):
+        return redirect(url_for('onboarding.warning'))
     from garmin_onboarding import is_refreshing, refresh_pending
     user_id = session['user_id']
     user_name = session.get('display_name', 'Atleta').split()[0]
@@ -370,8 +552,6 @@ def index():
     login_refresh = session.pop('needs_login_refresh', False)
     raw_data = _load_data(user_id)
     has_data = bool(raw_data)
-    has_ai = bool(raw_data and raw_data.get("metadata", {}).get("ai_recommendation"))
-
     # ?cached=1 allows skipping the refresh when Garmin is unreachable but user has data
     view_cached = request.args.get('cached') == '1' and has_data
 
@@ -385,9 +565,12 @@ def index():
             goal = user_doc_pre.get('training_goal')
             user_tz = session.get('timezone')
             dashboard_data = process_dashboard_data(raw_data, training_goal=goal, user_tz=user_tz)
-            dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
-            dashboard_data['garmin_sync_disabled'] = True
-            return render_template('fitness_report.html', **dashboard_data)
+            if dashboard_data:
+                dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
+                dashboard_data['garmin_sync_disabled'] = True
+                _add_race_hero(dashboard_data, user_doc_pre, user_tz)
+                _add_sections(dashboard_data, user_doc_pre)
+                return render_template('fitness_report.html', **dashboard_data)
         # No data at all + sync disabled → render with minimal skeleton so all template vars exist
         user_tz = session.get('timezone')
         _today = today_tz(user_tz)
@@ -396,6 +579,8 @@ def index():
         dashboard_data = process_dashboard_data(_empty_raw, training_goal=None, user_tz=user_tz)
         dashboard_data['last_refresh'] = ''
         dashboard_data['garmin_sync_disabled'] = True
+        _add_race_hero(dashboard_data, user_doc_pre, user_tz)
+        _add_sections(dashboard_data, user_doc_pre)
         return render_template('fitness_report.html', **dashboard_data)
 
     # If reconnect is needed but user has cached data, show dashboard with a warning banner
@@ -404,16 +589,19 @@ def index():
         goal = user_doc_pre.get('training_goal')
         user_tz = session.get('timezone')
         dashboard_data = process_dashboard_data(raw_data, training_goal=goal, user_tz=user_tz)
-        dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
-        dashboard_data['garmin_reconnect_needed'] = True
-        return render_template('fitness_report.html', **dashboard_data)
+        if dashboard_data:
+            dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
+            dashboard_data['garmin_reconnect_needed'] = True
+            _add_race_hero(dashboard_data, user_doc_pre, user_tz)
+            _add_sections(dashboard_data, user_doc_pre)
+            return render_template('fitness_report.html', **dashboard_data)
 
     # If reconnect is needed and there's no data at all, go to onboarding
     if needs_reconnect and not has_data:
         session.pop('garmin_connected', None)
         return redirect(url_for('onboarding.warning'))
 
-    if not view_cached and (login_refresh or not has_data or not has_ai or is_refreshing(user_id)):
+    if not view_cached and (login_refresh or not has_data or is_refreshing(user_id)):
         if not is_refreshing(user_id):
             # Reset pct BEFORE thread starts so status endpoint won't see stale pct=100
             refresh_pending(user_id)
@@ -423,7 +611,12 @@ def index():
     goal = user_doc_pre.get('training_goal')
     user_tz = session.get('timezone')
     dashboard_data = process_dashboard_data(raw_data, training_goal=goal, user_tz=user_tz)
+    if not dashboard_data:
+        # months dict is empty (fetch in progress or incomplete) — show loading screen
+        return render_template('dashboard_loading.html', user_name=user_name)
     dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
+    _add_race_hero(dashboard_data, user_doc_pre, user_tz)
+    _add_sections(dashboard_data, user_doc_pre)
     return render_template('fitness_report.html', **dashboard_data)
 
 
@@ -444,24 +637,30 @@ def prescription_status():
         user_doc = firestore_helper.get_user(user_id) or {}
         refresh_pending(user_id)
         if user_doc.get('garmin_sync_disabled'):
-            # Garmin disabled — only regen AI from existing data, no API call
-            threading.Thread(target=_regenerate_ai_only, args=(user_id, user_name), daemon=True).start()
+            threading.Thread(target=_recompute_summaries_only, args=(user_id,), daemon=True).start()
         else:
-            threading.Thread(target=_refresh_background, args=(user_id, user_name), daemon=True).start()
-        return jsonify({"ready": False, "refreshing": True, "pct": 1, "msg": "Generando prescripción…"})
+            # Wait 15s before calling Garmin — gives the previous instance time to die
+            # and avoids the simultaneous-call 429 that happens during rolling deploys.
+            threading.Thread(target=_refresh_background,
+                             args=(user_id, user_name),
+                             kwargs={'wait_before_start': 15},
+                             daemon=True).start()
+        return jsonify({"ready": False, "refreshing": True, "pct": 1,
+                        "msg": "Reconectando tras reinicio del servidor…"})
 
-    # ready=True only when thread explicitly finished (pct==100) AND data has AI rec
-    # pct==1 means "pending, thread not yet started" — never ready
+    # ready=True when thread finished (pct==100) AND user has data
     ready = False
     if not refreshing and pct == 100:
         raw_data = _load_data(user_id)
-        ready = bool(raw_data and raw_data.get("metadata", {}).get("ai_recommendation"))
+        ready = bool(raw_data)
 
-    # Include needs_reconnect flag so the loading screen can offer the reconnect button
+    # Include needs_reconnect and garmin_blocked flags for the loading screen
     needs_reconnect = False
+    garmin_blocked = False
     if pct == -1:
         user_doc = firestore_helper.get_user(user_id) or {}
         needs_reconnect = bool(user_doc.get('needs_garmin_reconnect'))
+        garmin_blocked = bool(progress.get("garmin_blocked") or user_doc.get('garmin_sync_disabled'))
 
     return jsonify({
         "ready": ready,
@@ -469,6 +668,7 @@ def prescription_status():
         "pct": pct,
         "msg": progress.get("msg", "Actualizando datos…"),
         "needs_reconnect": needs_reconnect,
+        "garmin_blocked": garmin_blocked,
     })
 
 
@@ -499,28 +699,44 @@ def upload_activities():
     existing_data = _load_data(user_id) or {'months': {}, 'metadata': {}}
 
     added = 0
+    updated = 0
     today_str = now_cdmx().date().isoformat()
     for row in reader:
         act = _parse_csv_row(row)
         if not act:
             continue
         month_key = act['startTimeLocal'][:7]
-        existing_data['months'].setdefault(month_key, {'activities': [], 'daily_stats': []})
-        existing_times = {a['startTimeLocal'] for a in existing_data['months'][month_key].get('activities', [])}
-        if act['startTimeLocal'] not in existing_times:
-            existing_data['months'][month_key]['activities'].append(act)
+        existing_data['months'].setdefault(month_key, {'activities': [], 'daily_stats': {}})
+        month_acts = existing_data['months'][month_key].get('activities', [])
+        existing_idx = next((i for i, a in enumerate(month_acts) if a['startTimeLocal'] == act['startTimeLocal']), None)
+        if existing_idx is None:
+            month_acts.append(act)
             added += 1
+        else:
+            # Upsert: update typeKey if it was previously stored as 'other' and now correctly mapped
+            old_type = month_acts[existing_idx].get('activityType', {}).get('typeKey', 'other')
+            new_type = act.get('activityType', {}).get('typeKey', 'other')
+            if old_type == 'other' and new_type != 'other':
+                month_acts[existing_idx]['activityType'] = act['activityType']
+                updated += 1
 
-    # Always regenerate AI — user explicitly requested a refresh by uploading CSV
     existing_data.setdefault('metadata', {})
-    existing_data['metadata']['ai_recommendation_date'] = '2000-01-01'
     _save_data(user_id, existing_data)
+    try:
+        from weekly_summarizer import compute_weekly_summaries
+        firestore_helper.save_weekly_summaries(user_id, compute_weekly_summaries(existing_data))
+    except Exception as e:
+        logger.error(f"Weekly summary error after CSV upload for {user_id}: {e}")
 
-    refresh_pending(user_id)
-    threading.Thread(target=_regenerate_ai_only, args=(user_id, user_name), daemon=True).start()
-
-    msg = f'{added} actividades nuevas importadas.' if added > 0 else 'Actividades ya cargadas.'
-    return jsonify({'added': added, 'message': msg, 'redirect': '/'})
+    if added > 0 and updated > 0:
+        msg = f'{added} actividades nuevas importadas, {updated} corregidas.'
+    elif added > 0:
+        msg = f'{added} actividades nuevas importadas.'
+    elif updated > 0:
+        msg = f'{updated} actividades corregidas.'
+    else:
+        msg = 'Actividades ya cargadas (sin cambios).'
+    return jsonify({'added': added, 'updated': updated, 'message': msg, 'redirect': '/'})
 
 
 @dashboard_bp.route('/garmin-reconnect')
@@ -560,10 +776,17 @@ def save_goal():
     data = request.get_json(silent=True) or {}
 
     try:
-        pace_str = (data.get('target_pace_str') or '5:00').strip()
-        parts = pace_str.split(':')
+        import re as _re
+        pace_raw = (data.get('target_pace_str') or '5:00').strip()
+        # Normalize: if a range like "6:00-6:30" take the first value
+        pace_raw = _re.split(r'\s*[-–]\s*', pace_raw)[0]
+        # Strip trailing units: " min/km", "/km", " min", etc.
+        pace_raw = _re.sub(r'\s*(min/km|/km|min|km)\s*$', '', pace_raw, flags=_re.IGNORECASE).strip()
+        parts = pace_raw.split(':')
         pace_min = int(parts[0])
         pace_sec = int(parts[1]) if len(parts) > 1 else 0
+        if not (0 <= pace_min <= 30 and 0 <= pace_sec <= 59):
+            raise ValueError
     except (ValueError, IndexError):
         return jsonify({"error": "Formato de ritmo inválido. Usa MM:SS, ej. 4:30"}), 400
 
@@ -595,7 +818,68 @@ def save_goal():
 
     firestore_helper.upsert_user(user_id, {'training_goal': goal})
     logger.info(f"Goal saved for {user_id}: {goal}")
-    return jsonify({"status": "ok", "goal": goal})
+
+    # Return candidate races so the frontend can ask the user to link up
+    race_candidates = []
+    if goal.get('event_date'):
+        raw_candidates = firestore_helper.find_similar_races(
+            goal.get('race_type', ''), goal.get('event_date', '')
+        )
+        for r in raw_candidates:
+            participant_names = [p.get('name', '') for p in r.get('participants', {}).values() if p.get('name')]
+            race_candidates.append({
+                'id': r['id'],
+                'name': r.get('name', ''),
+                'race_type': r.get('race_type', ''),
+                'event_date': r.get('event_date', ''),
+                'participant_count': r.get('participant_count', 0),
+                'participant_names': participant_names,
+            })
+
+    return jsonify({"status": "ok", "goal": goal, "race_candidates": race_candidates})
+
+
+@dashboard_bp.route('/goal/join-race', methods=['POST'])
+@login_required
+def join_race():
+    user_id = session['user_id']
+    data = request.get_json(silent=True) or {}
+    race_id = data.get('race_id')
+    create_new = data.get('create_new', False)
+
+    user_doc = firestore_helper.get_user(user_id) or {}
+    goal = user_doc.get('training_goal', {})
+
+    if not goal.get('event_date'):
+        return jsonify({"error": "No hay fecha de evento en el objetivo."}), 400
+
+    participant_data = {
+        'name': session.get('display_name', 'Atleta'),
+        'email': session.get('email', ''),
+        'pace_target': goal.get('target_pace_str', ''),
+        'weekly_peak_km': goal.get('weekly_peak_km', 0),
+        'race_type': goal.get('race_type', ''),
+        'joined_at': now_cdmx().isoformat(),
+    }
+
+    if not race_id or create_new:
+        name = (goal.get('description') or f"{goal.get('race_type', 'Carrera')} — {goal.get('event_date', '')}").strip()
+        race_id = firestore_helper.create_race(
+            race_type=goal.get('race_type', ''),
+            event_date=goal.get('event_date', ''),
+            name=name,
+            uid=user_id,
+            participant_data=participant_data,
+        )
+    else:
+        firestore_helper.add_participant_to_race(race_id, user_id, participant_data)
+
+    updated_goal = dict(goal)
+    updated_goal['race_id'] = race_id
+    firestore_helper.upsert_user(user_id, {'training_goal': updated_goal})
+
+    logger.info(f"User {user_id} joined race {race_id} (create_new={create_new})")
+    return jsonify({"status": "ok", "race_id": race_id})
 
 
 @dashboard_bp.route('/feedback', methods=['POST'])
@@ -647,22 +931,21 @@ def goal_setup_view():
     from datetime import date as _date, timedelta as _td
     user_id = session['user_id']
     raw_data = _load_data(user_id)
-    if not raw_data:
-        return redirect(url_for('dashboard.index'))
 
-    cutoff = (today_cdmx() - _td(days=90)).isoformat()
-    cutoff_month = cutoff[:7]
     run_acts = []
-    for m_key, m_data in raw_data.get("months", {}).items():
-        if m_key >= cutoff_month:
-            for a in m_data.get("activities", []):
-                if ("run" in a.get("activityType", {}).get("typeKey", "")
-                        and a.get("startTimeLocal", "")[:10] >= cutoff):
-                    run_acts.append(a)
-    run_acts.sort(key=lambda x: x.get("startTimeLocal", ""), reverse=True)
+    if raw_data:
+        cutoff = (today_cdmx() - _td(days=90)).isoformat()
+        cutoff_month = cutoff[:7]
+        for m_key, m_data in raw_data.get("months", {}).items():
+            if m_key >= cutoff_month:
+                for a in m_data.get("activities", []):
+                    if ("run" in a.get("activityType", {}).get("typeKey", "")
+                            and a.get("startTimeLocal", "")[:10] >= cutoff):
+                        run_acts.append(a)
+        run_acts.sort(key=lambda x: x.get("startTimeLocal", ""), reverse=True)
 
     total_run_km_90 = round(sum(a.get("distance", 0) / 1000 for a in run_acts), 1)
-    avg_weekly_km = round(total_run_km_90 / 13, 1)
+    avg_weekly_km = round(total_run_km_90 / 13, 1) if run_acts else 0.0
 
     recent_paces = []
     for a in run_acts[:5]:
@@ -673,13 +956,21 @@ def goal_setup_view():
 
     user_name = session.get('display_name', 'Atleta').split()[0]
     existing_goal = _get_goal(user_id)
+
+    user_doc_gs = firestore_helper.get_user(user_id) or {}
+    is_premium = bool(user_doc_gs.get('is_premium'))
+    can_regenerate, next_regen_date = _get_regen_status(user_doc_gs, session.get('timezone'))
+
     return render_template('goal_setup.html',
                            avg_weekly_km=avg_weekly_km,
                            total_run_km_90=total_run_km_90,
                            run_count_90=len(run_acts),
                            recent_paces=recent_paces,
                            existing_goal=existing_goal,
-                           user_name=user_name)
+                           user_name=user_name,
+                           can_regenerate=can_regenerate,
+                           next_regen_date=next_regen_date,
+                           is_premium=is_premium)
 
 
 @dashboard_bp.route('/goal/setup/chat', methods=['POST'])
@@ -695,16 +986,45 @@ def goal_setup_chat_route():
     if len(message) > 1000:
         return jsonify({"error": "Mensaje demasiado largo (máx 1000 caracteres)."}), 400
 
-    raw_data = _load_data(user_id)
-    if not raw_data:
-        return jsonify({"error": "No hay datos disponibles."}), 404
+    raw_data = _load_data(user_id) or {"months": {}, "metadata": {}}
 
     try:
         from ai_advisor import goal_setup_chat
+        from tz_utils import today_tz
         user_name = session.get('display_name', 'Atleta').split()[0]
         coaching_rules = firestore_helper.get_coaching_rules()
         weekly_summaries = firestore_helper.get_weekly_summaries(user_id)
-        result = goal_setup_chat(message, history, raw_data, user_name=user_name, coaching_rules=coaching_rules, weekly_summaries=weekly_summaries, user_tz=session.get('timezone'))
+        user_profile = firestore_helper.get_latest_assessment(user_id)
+        today_str = today_tz(session.get('timezone')).isoformat()
+        all_races = firestore_helper.get_all_races()
+        upcoming_races = [r for r in all_races if r.get('event_date', '') >= today_str]
+        result = goal_setup_chat(message, history, raw_data, user_name=user_name, coaching_rules=coaching_rules, weekly_summaries=weekly_summaries, user_tz=session.get('timezone'), user_profile=user_profile, upcoming_races=upcoming_races)
+
+        # When Sento just produced a goal_draft with event_date + race_type,
+        # look up existing races so the frontend can ask inline (not via modal).
+        race_candidates = []
+        goal_draft = result.get('goal_draft')
+        if goal_draft and goal_draft.get('event_date') and goal_draft.get('race_type'):
+            try:
+                raw_candidates = firestore_helper.find_similar_races(
+                    goal_draft['race_type'], goal_draft['event_date']
+                )
+                for r in raw_candidates:
+                    participant_names = [
+                        p.get('name', '') for p in r.get('participants', {}).values()
+                        if p.get('name')
+                    ]
+                    race_candidates.append({
+                        'id': r['id'],
+                        'name': r.get('name', ''),
+                        'race_type': r.get('race_type', ''),
+                        'event_date': r.get('event_date', ''),
+                        'participant_count': r.get('participant_count', 0),
+                        'participant_names': participant_names,
+                    })
+            except Exception as _e:
+                logger.warning(f"find_similar_races in chat failed: {_e}")
+        result['race_candidates'] = race_candidates
 
         updated = list(history) + [
             {"role": "user", "content": message},
@@ -794,6 +1114,10 @@ def set_timezone():
 @login_required
 def user_weekly_summaries():
     user_id = session['user_id']
+    # Admin viewing another user: allow uid override
+    requested_uid = request.args.get('uid', '').strip()
+    if requested_uid and session.get('is_admin'):
+        user_id = requested_uid
     weeks = firestore_helper.get_weekly_summaries(user_id)
     sorted_keys = sorted(weeks.keys())
     return jsonify({"weeks": [weeks[k] for k in sorted_keys]})
@@ -813,8 +1137,14 @@ def ask_ai():
         return jsonify({"error": "La pregunta no puede superar los 500 caracteres."}), 400
 
     raw_data = _load_data(user_id)
+    # Users with garmin_sync_disabled and no CSV imported yet still get Sento chat
     if not raw_data:
-        return jsonify({"error": "No hay datos disponibles. Recarga primero."}), 404
+        user_doc = firestore_helper.get_user(user_id) or {}
+        if not user_doc.get('garmin_sync_disabled'):
+            return jsonify({"error": "No hay datos disponibles. Recarga primero."}), 404
+        from tz_utils import today_tz
+        _mk = today_tz(session.get('timezone')).strftime('%Y-%m')
+        raw_data = {"months": {_mk: {"activities": [], "daily_stats": {}}}, "metadata": {}, "user_profile": {}}
 
     try:
         from ai_advisor import ask_ai_with_context
@@ -822,9 +1152,11 @@ def ask_ai():
         coaching_rules = firestore_helper.get_coaching_rules()
         t_plan = _get_training_plan(user_id)
         weekly_summaries = firestore_helper.get_weekly_summaries(user_id)
+        user_doc_chat = firestore_helper.get_user(user_id) or {}
+        plan_schedule = user_doc_chat.get('training_plan_schedule')
         dashboard_data = process_dashboard_data(raw_data, training_goal=goal)
         user_name = session.get('display_name', 'Atleta').split()[0]
-        answer = ask_ai_with_context(question, dashboard_data, raw_data, history=history, user_name=user_name, training_goal=goal, coaching_rules=coaching_rules, training_plan=t_plan, weekly_summaries=weekly_summaries, user_tz=session.get('timezone'))
+        answer = ask_ai_with_context(question, dashboard_data, raw_data, history=history, user_name=user_name, training_goal=goal, coaching_rules=coaching_rules, training_plan=t_plan, weekly_summaries=weekly_summaries, user_tz=session.get('timezone'), training_plan_schedule=plan_schedule)
 
         updated = list(history) + [
             {"role": "user", "content": question},
@@ -849,9 +1181,11 @@ def _generate_plan_background(user_id: str, goal: dict, user_name: str, user_tz:
     _plan_generating.add(user_id)
     _plan_error.pop(user_id, None)
     try:
+        user_profile = firestore_helper.get_latest_assessment(user_id)
         plan = generate_training_plan_schedule(
             goal, weekly_summaries=weekly_summaries,
-            user_name=user_name, user_tz=user_tz
+            user_name=user_name, user_tz=user_tz,
+            user_profile=user_profile
         )
         if plan:
             firestore_helper.upsert_user(user_id, {'training_plan_schedule': plan})
@@ -909,12 +1243,30 @@ def training_plan_view():
             except (ValueError, TypeError):
                 pass
 
+    # Detect stale plan: goal was updated after the plan was generated
+    plan_stale = False
+    if plan and goal:
+        plan_event = (plan.get('event_date') or '').strip()
+        goal_event = (goal.get('event_date') or '').strip()
+        plan_pace = (plan.get('goal_pace') or '').replace(' /km', '').strip()
+        goal_pace = (goal.get('target_pace_str') or '').strip()
+        if (plan_event and goal_event and plan_event != goal_event) or \
+           (plan_pace and goal_pace and plan_pace != goal_pace):
+            plan_stale = True
+
+    is_premium = bool(user_doc.get('is_premium'))
+    can_regenerate, next_regen_date = _get_regen_status(user_doc, session.get('timezone'))
+
     return render_template('training_plan.html',
                            plan=plan, goal=goal, user_name=user_name,
                            current_week=current_week,
                            week_dates=week_dates,
                            today_str=today.isoformat(),
-                           generating=generating)
+                           generating=generating,
+                           plan_stale=plan_stale,
+                           can_regenerate=can_regenerate,
+                           next_regen_date=next_regen_date,
+                           is_premium=is_premium)
 
 
 @dashboard_bp.route('/plan/status')
@@ -943,19 +1295,14 @@ def generate_plan_route():
     if not goal:
         return jsonify({"error": "No hay objetivo configurado. Primero define tu objetivo."}), 400
 
-    # Limit plan generation to once per calendar month per user
-    import datetime as _dt
+    # Limit plan generation to once per calendar month (premium users are exempt)
     user_tz = session.get('timezone')
-    existing_plan = user_doc.get('training_plan_schedule') or {}
-    generated_at = existing_plan.get('generated_at', '')
-    this_month = today_tz(user_tz).strftime('%Y-%m')
-    if generated_at and generated_at[:7] == this_month:
-        today_date = today_tz(user_tz)
-        next_month = (today_date.replace(day=1) + _dt.timedelta(days=32)).replace(day=1)
-        days_left = (next_month - today_date).days
+    can_regen, next_date = _get_regen_status(user_doc, user_tz)
+    if not can_regen:
         return jsonify({
-            "error": f"Ya generaste tu plan este mes (el {generated_at[:10]}). Podrás regenerarlo en {days_left} días.",
-            "limit_reached": True
+            "error": f"Ya generaste tu plan este mes. Podrás regenerarlo el {next_date}.",
+            "limit_reached": True,
+            "next_date": next_date,
         }), 429
 
     weekly_summaries = firestore_helper.get_weekly_summaries(user_id)

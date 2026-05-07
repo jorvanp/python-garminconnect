@@ -1,0 +1,442 @@
+# Spanish translations for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-05-05 15:37-0600\n"
+"PO-Revision-Date: 2026-05-04 08:13-0600\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: es\n"
+"Language-Team: es <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: templates/dashboard_loading.html:6
+msgid "Cargando"
+msgstr "Cargando"
+
+#: templates/dashboard_loading.html:123
+msgid "Hola,"
+msgstr "Hola,"
+
+#: templates/dashboard_loading.html:124
+msgid "Estamos actualizando tus datos del día."
+msgstr "Estamos actualizando tus datos del día."
+
+#: templates/dashboard_loading.html:124
+msgid "Esto tarda menos de un minuto."
+msgstr "Esto tarda menos de un minuto."
+
+#: templates/dashboard_loading.html:134
+msgid "Continuar sin Garmin →"
+msgstr "Continuar sin Garmin →"
+
+#: templates/dashboard_loading.html:135
+msgid "Reintentar"
+msgstr "Reintentar"
+
+#: templates/dashboard_loading.html:136
+msgid "Ver últimos datos disponibles"
+msgstr "Ver últimos datos disponibles"
+
+#: templates/dashboard_loading.html:140
+msgid "¡Listo! Cargando tu dashboard…"
+msgstr "¡Listo! Cargando tu dashboard…"
+
+#: templates/dashboard_loading.html:141
+msgid ""
+"La actualización está tardando demasiado. Puede haber un problema de "
+"conexión con Garmin."
+msgstr ""
+
+#: templates/dashboard_loading.html:142
+msgid "Ocurrió un error al actualizar. Intenta de nuevo."
+msgstr "Ocurrió un error al actualizar. Intenta de nuevo."
+
+#: templates/dashboard_loading.html:143
+msgid "Garmin no está disponible en este momento."
+msgstr "Garmin no está disponible en este momento."
+
+#: templates/dashboard_loading.html:144
+msgid "Puedes usar Sento con importación manual de actividades (CSV)."
+msgstr "Puedes usar Sento con importación manual de actividades (CSV)."
+
+#: templates/dashboard_loading.html:145
+msgid "🔌 Reconectar Garmin"
+msgstr "🔌 Reconectar Garmin"
+
+#: templates/fitness_report.html:104 templates/goal_setup.html:116
+msgid "Salir"
+msgstr "Salir"
+
+#: templates/fitness_report.html:116
+msgid "Importar CSV de Garmin"
+msgstr "Importar CSV de Garmin"
+
+#: templates/fitness_report.html:119
+msgid "Reconectar Garmin"
+msgstr "Reconectar Garmin"
+
+#: templates/fitness_report.html:176
+msgid "Importar actividades desde CSV"
+msgstr "Importar actividades desde CSV"
+
+#: templates/fitness_report.html:275
+msgid "Ver plan de entrenamiento"
+msgstr "Ver plan de entrenamiento"
+
+#: templates/fitness_report.html:314
+msgid "Snapshot de Hoy"
+msgstr "Snapshot de Hoy"
+
+#: templates/fitness_report.html:406
+msgid "Abre"
+msgstr "Abre"
+
+#: templates/fitness_report.html:406
+msgid "ve a"
+msgstr "ve a"
+
+#: templates/fitness_report.html:406
+msgid "Actividades"
+msgstr "Actividades"
+
+#: templates/fitness_report.html:406
+msgid "selecciona el período"
+msgstr "selecciona el período"
+
+#: templates/fitness_report.html:406
+msgid "haz clic en"
+msgstr "haz clic en"
+
+#: templates/fitness_report.html:406
+msgid "y sube el archivo aquí."
+msgstr "y sube el archivo aquí."
+
+#: templates/fitness_report.html:422
+msgid "Ya tienes un objetivo guardado. Al guardar,"
+msgstr "Ya tienes un objetivo guardado. Al guardar,"
+
+#: templates/fitness_report.html:422
+msgid "será sobreescrito"
+msgstr "será sobreescrito"
+
+#: templates/fitness_report.html:460
+msgid "Cancelar"
+msgstr "Cancelar"
+
+#: templates/fitness_report.html:469
+msgid "Calidad de Sueño — Anoche"
+msgstr "Calidad de Sueño — Anoche"
+
+#: templates/fitness_report.html:490
+msgid "Óptimo adulto activo"
+msgstr "Óptimo adulto activo"
+
+#: templates/fitness_report.html:567
+msgid "Tendencias Históricas (6 meses)"
+msgstr "Tendencias Históricas (6 meses)"
+
+#: templates/fitness_report.html:570
+msgid "VO2 Máx"
+msgstr "VO2 Máx"
+
+#: templates/fitness_report.html:574
+msgid "FC en Reposo"
+msgstr "FC en Reposo"
+
+#: templates/fitness_report.html:578
+msgid "Kilómetros de Carrera / Mes"
+msgstr "Kilómetros de Carrera / Mes"
+
+#: templates/fitness_report.html:582
+msgid "Carga de Entrenamiento / Mes"
+msgstr "Carga de Entrenamiento / Mes"
+
+#: templates/fitness_report.html:586
+msgid "Puntaje de Sueño Promedio"
+msgstr "Puntaje de Sueño Promedio"
+
+#: templates/fitness_report.html:590
+msgid "Sesiones de Fuerza / Mes"
+msgstr "Sesiones de Fuerza / Mes"
+
+#: templates/fitness_report.html:598
+msgid "Resumen Mensual"
+msgstr "Resumen Mensual"
+
+#: templates/fitness_report.html:683
+msgid "Aviso:"
+msgstr "Aviso:"
+
+#: templates/fitness_report.html:683
+msgid "Las recomendaciones de Sento son"
+msgstr "Las recomendaciones de Sento son"
+
+#: templates/fitness_report.html:683
+msgid "orientativas"
+msgstr "orientativas"
+
+#: templates/fitness_report.html:683
+msgid ""
+"y no sustituyen asesoramiento médico o deportivo profesional. Consulta "
+"con un profesional antes de modificar tu entrenamiento."
+msgstr ""
+
+#: templates/fitness_report.html:955
+msgid "Ver plan →"
+msgstr "Ver plan →"
+
+#: templates/fitness_report.html:994
+msgid "Enviar"
+msgstr "Enviar"
+
+#: templates/goal_setup.html:6
+msgid "Configurar objetivo"
+msgstr "Configurar objetivo"
+
+#: templates/goal_setup.html:110 templates/training_plan.html:135
+#: templates/training_plan.html:142
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: templates/home.html:288
+msgid "Corre más inteligente."
+msgstr "Corre más inteligente."
+
+#: templates/home.html:289
+msgid "Llega más lejos."
+msgstr "Llega más lejos."
+
+#: templates/home.html:293
+msgid ""
+"Sento analiza tus datos de entrenamiento y genera un plan personalizado "
+"semana a semana."
+msgstr ""
+
+#: templates/home.html:294
+msgid "Sin suposiciones — solo ciencia del deporte adaptada a ti."
+msgstr "Sin suposiciones — solo ciencia del deporte adaptada a ti."
+
+#: templates/home.html:298
+msgid "Crear mi plan gratis"
+msgstr "Crear mi plan gratis"
+
+#: templates/home.html:299
+msgid "Ver cómo funciona"
+msgstr "Ver cómo funciona"
+
+#: templates/home.html:304
+msgid "Tu ritmo meta te espera"
+msgstr "Tu ritmo meta te espera"
+
+#: templates/home.html:330
+msgid "Por qué Sento"
+msgstr "Por qué Sento"
+
+#: templates/home.html:331
+msgid "Entrenamiento que evoluciona contigo"
+msgstr "Entrenamiento que evoluciona contigo"
+
+#: templates/home.html:371
+msgid "Proceso"
+msgstr "Proceso"
+
+#: templates/home.html:372
+#, fuzzy
+msgid "De cero a tu plan en minutos"
+msgstr "Generando tu plan de entrenamiento"
+
+#: templates/home.html:428
+msgid "¿Listo para tu próxima carrera?"
+msgstr "¿Listo para tu próxima carrera?"
+
+#: templates/home.html:429
+msgid "Crea tu plan personalizado en minutos. Gratis."
+msgstr "Crea tu plan personalizado en minutos. Gratis."
+
+#: templates/home.html:430
+msgid "Comenzar ahora"
+msgstr "Comenzar ahora"
+
+#: templates/home.html:435 templates/login.html:299
+msgid "Entrenamiento inteligente para corredores"
+msgstr "Entrenamiento inteligente para corredores"
+
+#: templates/login.html:6
+msgid "Iniciar sesión"
+msgstr "Iniciar sesión"
+
+#: templates/login.html:204
+msgid "Volver"
+msgstr "Volver"
+
+#: templates/login.html:234
+msgid "Acceso no disponible."
+msgstr "Acceso no disponible."
+
+#: templates/login.html:234
+msgid ""
+"El portal ha alcanzado el límite máximo de usuarios. Contacta al "
+"administrador para solicitar acceso."
+msgstr ""
+
+#: templates/login.html:245
+msgid "Continuar con Google"
+msgstr "Continuar con Google"
+
+#: templates/onboarding.html:6
+#, fuzzy
+msgid "Conectar cuenta"
+msgstr "Reconectar Garmin"
+
+#: templates/onboarding.html:65
+msgid "Entendido, conectar mi cuenta"
+msgstr "Entendido, conectar mi cuenta"
+
+#: templates/onboarding.html:67
+#, fuzzy
+msgid "Continuar sin Garmin (importar CSV)"
+msgstr "Continuar sin Garmin →"
+
+#: templates/onboarding.html:78
+#, fuzzy
+msgid "Conectar cuenta Garmin"
+msgstr "Reconectar Garmin"
+
+#: templates/onboarding.html:90
+msgid "Email de Garmin Connect"
+msgstr "Email de Garmin Connect"
+
+#: templates/onboarding.html:93
+msgid "Contraseña de Garmin Connect"
+msgstr "Contraseña de Garmin Connect"
+
+#: templates/onboarding.html:96
+msgid "Conectar y continuar →"
+msgstr "Conectar y continuar →"
+
+#: templates/profile_setup.html:97
+#, fuzzy
+msgid "¡Hola,"
+msgstr "Hola,"
+
+#: templates/profile_setup.html:98
+msgid ""
+"Cuéntanos un poco sobre ti para que Sento pueda darte recomendaciones "
+"realmente personalizadas."
+msgstr ""
+
+#: templates/training_plan.html:135
+msgid "Plan de entrenamiento"
+msgstr "Plan de entrenamiento"
+
+#: templates/training_plan.html:139
+msgid "Ver dashboard"
+msgstr "Ver dashboard"
+
+#: templates/training_plan.html:148
+msgid "Recomendación orientativa:"
+msgstr "Recomendación orientativa:"
+
+#: templates/training_plan.html:148
+msgid ""
+"Este plan fue generado por inteligencia artificial. Escucha a tu cuerpo y"
+" consulta con un profesional ante cualquier molestia."
+msgstr ""
+
+#: templates/training_plan.html:155
+msgid "Generando tu plan de entrenamiento"
+msgstr "Generando tu plan de entrenamiento"
+
+#: templates/training_plan.html:156
+msgid "Esto puede tomar unos segundos. No cierres esta página."
+msgstr "Esto puede tomar unos segundos. No cierres esta página."
+
+#: templates/training_plan.html:186
+msgid "Reconfigurar objetivo"
+msgstr "Reconfigurar objetivo"
+
+#: templates/training_plan.html:191
+msgid "Inicio:"
+msgstr "Inicio:"
+
+#: templates/training_plan.html:192
+msgid "Evento:"
+msgstr "Evento:"
+
+#: templates/training_plan.html:193
+msgid "Ritmo meta:"
+msgstr "Ritmo meta:"
+
+#: templates/training_plan.html:194
+msgid "Pico:"
+msgstr "Pico:"
+
+#: templates/training_plan.html:194
+msgid "km/sem"
+msgstr "km/sem"
+
+#: templates/training_plan.html:195
+msgid "semanas"
+msgstr "semanas"
+
+#: templates/training_plan.html:198
+msgid "Generado el"
+msgstr "Generado el"
+
+#: templates/training_plan.html:206
+msgid "sem."
+msgstr "sem."
+
+#: templates/training_plan.html:213
+msgid "Descanso"
+msgstr "Descanso"
+
+#: templates/training_plan.html:214
+msgid "Rodaje suave"
+msgstr "Rodaje suave"
+
+#: templates/training_plan.html:215
+msgid "Rodaje largo"
+msgstr "Rodaje largo"
+
+#: templates/training_plan.html:216
+msgid "Tempo"
+msgstr "Tempo"
+
+#: templates/training_plan.html:217
+msgid "Intervalos"
+msgstr "Intervalos"
+
+#: templates/training_plan.html:218
+msgid "Cross / Fuerza"
+msgstr "Cross / Fuerza"
+
+#: templates/training_plan.html:219
+msgid "Carrera / Evento"
+msgstr "Carrera / Evento"
+
+#: templates/training_plan.html:232
+msgid "Semana"
+msgstr "Semana"
+
+#: templates/training_plan.html:236
+msgid "Esta semana"
+msgstr "Esta semana"
+
+#: templates/training_plan.html:265
+msgid "Regenerar plan"
+msgstr "Regenerar plan"
+
+#: templates/training_plan.html:266
+msgid "Volver al dashboard"
+msgstr "Volver al dashboard"
+

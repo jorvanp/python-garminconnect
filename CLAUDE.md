@@ -228,6 +228,27 @@ timezone                # Zona horaria IANA del usuario
 
 ---
 
+## Tests
+
+```bash
+.venv/bin/python -m pytest tests/test_helpers.py -v
+```
+
+**Regla:** Antes de cada cambio en `helpers.py`, `routes/admin.py`, `routes/dashboard.py` o `weekly_summarizer.py`, correr los tests. Si un cambio rompe un test, arreglarlo antes de continuar.
+
+**Archivos de test del proyecto (no del paquete garminconnect):**
+```
+tests/test_helpers.py    # process_dashboard_data, _merge_goal
+```
+
+**Qué cubren los tests actuales:**
+- `_merge_goal(None)` → devuelve todos los defaults (nunca KeyError en template)
+- `process_dashboard_data(None/{}/ sin months)` → devuelve None (no crashea en admin)
+- `process_dashboard_data(raw_mínimo)` → dict con todas las keys que usa el template
+- Regression: `dashboard_data['_admin_viewing'] = True` no crashea cuando data es válida
+
+---
+
 ## Reglas importantes — no hacer
 
 - **No paralelizar usuarios en el cron** — OOM garantizado con más de 2 usuarios
@@ -237,6 +258,8 @@ timezone                # Zona horaria IANA del usuario
 - **No mockear Firestore/GCS en tests** — las divergencias mock/prod han causado bugs en producción
 - **No mencionar términos técnicos al usuario** — Sento nunca habla de JSON, estructuras, bloques de código, etc.
 - **No calcular weekly_summaries después del llamado a generate_daily_recommendation** — deben calcularse antes para pasarlos como contexto
+- **Siempre correr tests antes de deployar** — `.venv/bin/python -m pytest tests/test_helpers.py -v`
+- **Diseño responsivo obligatorio** — todos los cambios de UI deben funcionar en móvil (≤640px). Usar `@media (max-width: 640px)` y `@media (max-width: 700px)`. Revisar especialmente grids, tablas y tarjetas que en móvil deben colapsar a columna única o usar scroll horizontal controlado. Nunca dejar elementos que crezcan sin límite de ancho en flex layouts móviles (`flex: 0 0 <fixed>px` en vez de dejar grow implícito).
 
 ---
 

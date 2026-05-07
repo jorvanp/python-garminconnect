@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sin datos — Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .card { background: white; border-radius: 16px; padding: 40px 36px; max-width: 480px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; }
+  .icon { font-size: 48px; margin-bottom: 16px; }
+  h2 { font-size: 20px; font-weight: 800; color: #1a1a2e; margin-bottom: 8px; }
+  .email { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+  .info-box { background: #fef9ec; border: 1px solid #fcd34d; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #78350f; line-height: 1.65; text-align: left; margin-bottom: 24px; }
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; border: none; }
+  .btn-primary { background: #6366f1; color: white; }
+  .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-secondary:hover { background: #e5e7eb; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">⏳</div>
+  <h2>Datos aún no disponibles</h2>
+  <p class="email">{{ email }}</p>
+  <div class="info-box">
+    <strong>{{ name }}</strong> se registró recientemente y su información de Garmin aún está siendo procesada, o no tiene actividades registradas todavía.<br><br>
+    Si el fetch inicial está en progreso, los datos estarán disponibles en unos minutos. Puedes intentar un <strong>Refresh completo</strong> desde el panel admin para reiniciarlo.
+  </div>
+  <div class="actions">
+    <a href="/admin/" class="btn btn-secondary">← Volver al admin</a>
+    <button class="btn btn-primary" onclick="triggerRefresh()">🔄 Refresh completo</button>
+  </div>
+  <div id="refresh-status" style="margin-top:14px;font-size:13px;color:#6b7280;display:none;"></div>
+</div>
+<script>
+async function triggerRefresh() {
+  const btn = document.querySelector('.btn-primary');
+  const status = document.getElementById('refresh-status');
+  btn.disabled = true;
+  btn.textContent = 'Iniciando...';
+  status.style.display = 'block';
+  status.textContent = 'Enviando solicitud...';
+  try {
+    const res = await fetch('/admin/user/{{ uid }}/refresh/full', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      status.textContent = '✅ Refresh iniciado. Los datos estarán listos en 2-5 minutos.';
+      btn.textContent = '✅ En progreso';
+    } else {
+      status.textContent = '❌ Error: ' + (data.error || res.status);
+      btn.disabled = false;
+      btn.textContent = '🔄 Refresh completo';
+    }
+  } catch(e) {
+    status.textContent = '❌ Error de red.';
+    btn.disabled = false;
+    btn.textContent = '🔄 Refresh completo';
+  }
+}
+</script>
+</body>
+</html>

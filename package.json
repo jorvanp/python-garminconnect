@@ -1,0 +1,25 @@
+{
+  "name": "garminconnect",
+  "version": "1.0.0",
+  "description": "[![GitHub Release][releases-shield]][releases] [![GitHub Activity][commits-shield]][commits] [![License][license-shield]](LICENSE) ![Project Maintenance][maintenance-shield]",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jorvanp/python-garminconnect.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jorvanp/python-garminconnect/issues"
+  },
+  "homepage": "https://github.com/jorvanp/python-garminconnect#readme"
+}

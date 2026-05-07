@@ -1,38 +1,44 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sento Run — Conectar cuenta</title>
+<title>Sento Run — {{ _('Conectar cuenta') }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
   .card { background: #fff; border-radius: 20px; padding: 40px 36px; max-width: 480px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,0.10); }
-  h1 { font-size: 22px; font-weight: 800; color: #1a1a2e; margin-bottom: 8px; }
-  .step-badge { display: inline-block; background: #e8f0fe; color: #1a73e8; font-size: 12px; font-weight: 700; border-radius: 20px; padding: 3px 10px; margin-bottom: 16px; }
+  h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+  .step-badge { display: inline-block; background: #fff7ed; color: #ea580c; font-size: 12px; font-weight: 700; border-radius: 20px; padding: 3px 10px; margin-bottom: 16px; }
   p { font-size: 14px; color: #555; line-height: 1.7; margin-bottom: 12px; }
   .warning-box { background: #fff8e1; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 14px 16px; margin: 20px 0; }
   .warning-box p { color: #7c5200; margin: 0; font-size: 13px; }
   .warning-box strong { color: #b45309; }
   .btn { display: block; width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; border: none; transition: all 0.2s; margin-top: 20px; }
-  .btn-primary { background: linear-gradient(135deg, #1a1a2e, #0f3460); color: #fff; }
+  .btn-primary { background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; }
   .btn-primary:hover { opacity: 0.9; }
   .btn-secondary { background: #f4f6f9; color: #444; border: 1px solid #e0e0e0; }
   .btn-secondary:hover { background: #e8ecf0; }
   label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; margin-top: 16px; }
   input[type=email], input[type=password] { width: 100%; border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; font-size: 14px; font-family: inherit; outline: none; transition: border 0.2s; }
-  input:focus { border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,0.12); }
+  input:focus { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.12); }
   .error-msg { background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; padding: 12px 14px; margin-top: 16px; font-size: 13px; color: #b91c1c; }
   .security-note { display: flex; gap: 8px; align-items: flex-start; background: #f0fdf4; border-radius: 8px; padding: 12px 14px; margin-top: 16px; }
   .security-note span { font-size: 13px; color: #166534; line-height: 1.5; }
   .pending-icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
-  .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 16px auto; }
+  .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #f97316; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 16px auto; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .steps-nav { display: flex; gap: 8px; margin-bottom: 28px; }
   .step-dot { flex: 1; height: 4px; border-radius: 2px; background: #e0e0e0; }
-  .step-dot.active { background: #1a73e8; }
+  .step-dot.active { background: #f97316; }
   .step-dot.done { background: #22c55e; }
 </style>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<meta property="og:image" content="/static/og-image.png">
 </head>
 <body>
 <div class="card">
@@ -56,9 +62,9 @@
      • Leer tu historial de actividades<br>
      • Sincronizar tu información periódicamente (cada hora)</p>
 
-  <a href="/onboarding/connect" class="btn btn-primary">Entendido, conectar mi cuenta</a>
+  <a href="/onboarding/connect" class="btn btn-primary">{{ _('Entendido, conectar mi cuenta') }}</a>
   <form method="POST" action="/onboarding/skip" style="margin-top:10px;">
-    <button type="submit" class="btn btn-secondary">Continuar sin Garmin (importar CSV)</button>
+    <button type="submit" class="btn btn-secondary">{{ _('Continuar sin Garmin (importar CSV)') }}</button>
   </form>
   <a href="/auth/logout" class="btn btn-secondary" style="margin-top:6px;">Cancelar y salir</a>
 
@@ -69,7 +75,7 @@
     <div class="step-dot"></div>
   </div>
   <div class="step-badge">Paso 2 de 2</div>
-  <h1>Conectar cuenta Garmin</h1>
+  <h1>{{ _('Conectar cuenta Garmin') }}</h1>
   <p>Ingresa tus credenciales de Garmin Connect. Se usarán <strong>una sola vez</strong> para generar un token de sesión y serán descartadas inmediatamente.</p>
 
   <div class="security-note">
@@ -80,16 +86,28 @@
   <div class="error-msg">❌ {{ error }}</div>
   {% endif %}
 
-  <form method="POST" action="/onboarding/connect" autocomplete="off">
-    <label for="garmin_email">Email de Garmin Connect</label>
+  <form method="POST" action="/onboarding/connect" autocomplete="off" id="connectForm">
+    <label for="garmin_email">{{ _('Email de Garmin Connect') }}</label>
     <input type="email" id="garmin_email" name="garmin_email" placeholder="tu@email.com" required autocomplete="off">
 
-    <label for="garmin_password">Contraseña de Garmin Connect</label>
+    <label for="garmin_password">{{ _('Contraseña de Garmin Connect') }}</label>
     <input type="password" id="garmin_password" name="garmin_password" placeholder="••••••••" required autocomplete="new-password">
 
-    <button type="submit" class="btn btn-primary">Conectar y continuar →</button>
+    <button type="submit" class="btn btn-primary" id="connectBtn">{{ _('Conectar y continuar →') }}</button>
   </form>
-  <a href="/onboarding/" class="btn btn-secondary" style="margin-top:10px;">← Volver</a>
+  <div id="connectingMsg" style="display:none;text-align:center;margin-top:16px;">
+    <div class="spinner"></div>
+    <p style="color:#555;font-size:13px;margin-top:8px;">Autenticando con Garmin Connect…<br>Esto puede tardar hasta 30 segundos.</p>
+  </div>
+  <a href="/onboarding/" class="btn btn-secondary" style="margin-top:10px;" id="backLink">← Volver</a>
+  <script>
+    document.getElementById('connectForm').addEventListener('submit', function() {
+      document.getElementById('connectBtn').disabled = true;
+      document.getElementById('connectBtn').textContent = 'Conectando…';
+      document.getElementById('connectingMsg').style.display = 'block';
+      document.getElementById('backLink').style.display = 'none';
+    });
+  </script>
 
   {% elif step == 'pending' %}
   <div class="steps-nav">
@@ -99,7 +117,7 @@
   </div>
   <div class="pending-icon">⬇️</div>
   <h1>Descargando tu historial</h1>
-  <p>Estamos leyendo 6 meses de actividades y métricas diarias desde Garmin Connect. Esto tarda entre 3 y 8 minutos según tu historial.</p>
+  <p>Estamos leyendo 2 meses de actividades y métricas diarias desde Garmin Connect. Esto tarda entre 2 y 5 minutos según tu historial.</p>
 
   <div style="margin:20px 0;">
     <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:6px;">
@@ -107,7 +125,7 @@
       <span id="progressPct">0%</span>
     </div>
     <div style="background:#e5e7eb;border-radius:8px;height:12px;overflow:hidden;">
-      <div id="progressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#1a73e8,#6366f1);border-radius:8px;transition:width 0.5s ease;"></div>
+      <div id="progressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#f97316,#ea580c);border-radius:8px;transition:width 0.5s ease;"></div>
     </div>
   </div>
 

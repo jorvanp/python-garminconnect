@@ -1,0 +1,24 @@
+{# Lang toggle — included inside user-facing navbars #}
+<div class="lang-toggle" style="display:flex;align-items:center;gap:4px;">
+  <button
+    onclick="setLang('es')"
+    title="Español"
+    style="background:{{ 'rgba(255,255,255,0.25)' if (session.lang or 'es') == 'es' else 'rgba(255,255,255,0.08)' }};color:{{ '#fff' if (session.lang or 'es') == 'es' else 'rgba(255,255,255,0.5)' }};border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-weight:700;font-size:11px;transition:all 0.2s;letter-spacing:0.3px;"
+  >ES</button>
+  <button
+    onclick="setLang('en')"
+    title="English"
+    style="background:{{ 'rgba(255,255,255,0.25)' if session.lang == 'en' else 'rgba(255,255,255,0.08)' }};color:{{ '#fff' if session.lang == 'en' else 'rgba(255,255,255,0.5)' }};border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-weight:700;font-size:11px;transition:all 0.2s;letter-spacing:0.3px;"
+  >EN</button>
+</div>
+<script>
+function setLang(lang) {
+  fetch('/user/lang', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({lang: lang})
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'ok') location.reload();
+  });
+}
+</script>

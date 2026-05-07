@@ -3,6 +3,7 @@ import os
 from functools import wraps
 
 from flask import Blueprint, redirect, render_template, request, session, url_for, jsonify
+import re as _re
 
 import firestore_helper
 from gcs_helper import GCSHelper
@@ -30,6 +31,17 @@ def google_login_required(f):
 @google_login_required
 def warning():
     if session.get('garmin_connected'):
+        return redirect(url_for('dashboard.index'))
+    # If Garmin is globally disabled, auto-skip to CSV import flow
+    config = firestore_helper.get_app_config()
+    if not config.get('garmin_enabled', True):
+        user_id = session['user_id']
+        firestore_helper.upsert_user(user_id, {
+            'garmin_connected': True,
+            'garmin_sync_disabled': True,
+        })
+        session['garmin_connected'] = True
+        session.pop('needs_login_refresh', None)
         return redirect(url_for('dashboard.index'))
     return render_template('onboarding.html', step='warning')
 
@@ -90,6 +102,60 @@ def connect():
 @google_login_required
 def pending():
     return render_template('onboarding.html', step='pending')
+
+
+@onboarding_bp.route('/profile', methods=['GET'])
+@google_login_required
+def profile_setup():
+    user_name = session.get('display_name', 'Atleta').split()[0]
+    return render_template('profile_setup.html', user_name=user_name)
+
+
+@onboarding_bp.route('/profile', methods=['POST'])
+@google_login_required
+def profile_setup_save():
+    data = request.get_json(silent=True) or {}
+    uid = session['user_id']
+
+    # Basic validation
+    required = ['birth_date', 'sex', 'weekly_days', 'weekly_km']
+    for field in required:
+        if not data.get(field) and data.get(field) != 0:
+            return jsonify({"error": f"Campo requerido: {field}"}), 400
+
+    # Sanitize: only keep expected fields
+    assessment = {
+        'birth_date':              str(data.get('birth_date', '')),
+        'sex':                     str(data.get('sex', '')),
+        'weekly_days':             int(data.get('weekly_days', 0)),
+        'weekly_km':               float(data.get('weekly_km', 0)),
+        'longest_run': {
+            'distance_km':         float(data.get('longest_run_km', 0) or 0),
+            'time':                str(data.get('longest_run_time', '') or ''),
+            'date':                str(data.get('longest_run_date', '') or ''),
+        },
+        'reference_times': {
+            '5k':  str(data.get('ref_5k', '')  or ''),
+            '10k': str(data.get('ref_10k', '') or ''),
+            '21k': str(data.get('ref_21k', '') or ''),
+            '42k': str(data.get('ref_42k', '') or ''),
+        },
+        'long_run_day':            str(data.get('long_run_day', '') or ''),
+        'plan_start_preference':   str(data.get('plan_start_preference', 'now') or 'now'),
+        'plan_start_date':         str(data.get('plan_start_date', '') or ''),
+    }
+
+    firestore_helper.save_assessment(uid, assessment)
+    session['has_profile_assessment'] = True
+    return jsonify({"status": "ok"})
+
+
+@onboarding_bp.route('/profile/skip', methods=['POST'])
+@google_login_required
+def profile_setup_skip():
+    """User skips the assessment. We mark session so they're not redirected again this session."""
+    session['has_profile_assessment'] = True
+    return jsonify({"status": "ok"})
 
 
 @onboarding_bp.route('/status')

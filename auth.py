@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime, timezone
 from flask import Blueprint, redirect, url_for, session
 from authlib.integrations.flask_client import OAuth
 
@@ -73,7 +74,7 @@ def callback():
         'display_name': userinfo.get('name', email),
         'picture_url': userinfo.get('picture', ''),
         'is_admin': is_admin,
-        'last_login': now_cdmx().isoformat(),
+        'last_login': datetime.now(timezone.utc).isoformat(),
     }
     if not existing:
         update_data['garmin_connected'] = False
@@ -83,6 +84,22 @@ def callback():
     firestore_helper.upsert_user(uid, update_data)
 
     user = firestore_helper.get_user(uid)
+
+    # Determine lang: existing preference → Google locale → fallback 'es'
+    _supported = {'es', 'en'}
+    stored_lang = user.get('lang') if user else None
+    google_locale = userinfo.get('locale') or ''
+    google_lang = google_locale.split('-')[0].lower() if google_locale else ''
+    if stored_lang in _supported:
+        lang = stored_lang
+    elif google_lang in _supported:
+        lang = google_lang
+        if not stored_lang:
+            firestore_helper.upsert_user(uid, {'lang': lang})
+    else:
+        lang = 'es'
+
+    session.permanent = True
     session['user_id'] = uid
     session['email'] = email
     session['display_name'] = userinfo.get('name', email)
@@ -90,6 +107,7 @@ def callback():
     session['is_admin'] = is_admin
     session['garmin_connected'] = user.get('garmin_connected', False)
     session['timezone'] = user.get('timezone', 'America/Mexico_City')
+    session['lang'] = lang
     session['needs_login_refresh'] = True  # Always refresh on fresh login
 
     if not session['garmin_connected']:
@@ -101,4 +119,4 @@ def callback():
 @auth_bp.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('auth.login'))
+    return redirect('/')

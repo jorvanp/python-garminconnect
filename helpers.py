@@ -29,7 +29,7 @@ def _merge_goal(user_goal: dict | None) -> dict:
 
 def process_dashboard_data(raw_data, training_goal: dict | None = None, user_tz: str | None = None):
     """Processes raw garmin json data into flattened variables for Jinja."""
-    if not raw_data or "months" not in raw_data:
+    if not raw_data or "months" not in raw_data or not raw_data["months"]:
         return None
 
     goal_configured = bool(training_goal and training_goal.get('target_pace_str'))
@@ -39,7 +39,8 @@ def process_dashboard_data(raw_data, training_goal: dict | None = None, user_tz:
     yesterday_str = (today_tz(user_tz) - timedelta(days=1)).isoformat()
 
     last_month_key = sorted(raw_data["months"].keys())[-1]
-    daily_stats = raw_data["months"][last_month_key].get("daily_stats", {})
+    _ds_raw = raw_data["months"][last_month_key].get("daily_stats", {})
+    daily_stats = _ds_raw if isinstance(_ds_raw, dict) else {}
 
     def extract_metric(key, extractor_fn, default='—'):
         """Busca hacia atrás (hasta 7 días) hasta encontrar una métrica válida."""
@@ -48,7 +49,10 @@ def process_dashboard_data(raw_data, training_goal: dict | None = None, user_tz:
             d_str = current_dt.isoformat()
             month_key = d_str[:7]
             if month_key in raw_data["months"]:
-                day_dict = raw_data["months"][month_key].get("daily_stats", {}).get(d_str, {})
+                ds = raw_data["months"][month_key].get("daily_stats", {})
+                if not isinstance(ds, dict):
+                    ds = {}
+                day_dict = ds.get(d_str, {})
                 val = day_dict.get(key)
                 if val:
                     try:
@@ -107,7 +111,8 @@ def process_dashboard_data(raw_data, training_goal: dict | None = None, user_tz:
     for m in sorted(raw_data["months"].keys()):
         chart_months.append(m[-2:])
         m_rhrs = []
-        for d in raw_data["months"][m].get('daily_stats', {}).values():
+        _ds = raw_data["months"][m].get('daily_stats', {})
+        for d in (_ds.values() if isinstance(_ds, dict) else []):
             if not isinstance(d, dict):
                 continue
             val = parse_rhr(d.get('resting_heart_rate', {}))
@@ -220,7 +225,8 @@ def process_dashboard_data(raw_data, training_goal: dict | None = None, user_tz:
     # Count actual days with loaded data
     all_dates_with_data = set()
     for m in raw_data["months"].values():
-        for d_str, d_val in m.get("daily_stats", {}).items():
+        _ds2 = m.get("daily_stats", {})
+        for d_str, d_val in (_ds2.items() if isinstance(_ds2, dict) else []):
             if d_val:  # only count days that have at least some data
                 all_dates_with_data.add(d_str)
     days_loaded = len(all_dates_with_data)

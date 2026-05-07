@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sento — Mi perfil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f0f2f5; color: #222; min-height: 100vh; }
+
+nav { background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,0.3); }
+.nav-brand { font-size: 16px; font-weight: 900; display: flex; align-items: center; gap: 8px; text-decoration: none; color: white; }
+
+.page { max-width: 560px; margin: 0 auto; padding: 32px 16px 64px; }
+
+.back-link { display: inline-flex; align-items: center; gap: 6px; color: #6b7280; font-size: 13px; font-weight: 600; text-decoration: none; margin-bottom: 24px; transition: color 0.2s; }
+.back-link:hover { color: #374151; }
+
+.profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+.profile-avatar { width: 56px; height: 56px; border-radius: 50%; border: 3px solid #f97316; flex-shrink: 0; }
+.profile-avatar-placeholder { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg,#f97316,#ea580c); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: white; flex-shrink: 0; }
+.profile-name { font-size: 20px; font-weight: 800; color: #0f172a; }
+.profile-email { font-size: 13px; color: #9ca3af; margin-top: 2px; }
+
+.card { background: white; border-radius: 16px; padding: 22px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); margin-bottom: 16px; }
+.card-title { font-size: 13px; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 18px; }
+
+.field { margin-bottom: 16px; }
+.field:last-child { margin-bottom: 0; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+.field input, .field select { width: 100%; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 10px 13px; font-size: 14px; font-family: inherit; outline: none; transition: border 0.2s; background: white; }
+.field input:focus, .field select:focus { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.1); }
+.field .hint { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }
+
+.sex-options { display: flex; gap: 8px; }
+.sex-btn { flex: 1; padding: 10px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; color: #374151; }
+.sex-btn.selected { border-color: #f97316; background: #fff7ed; color: #ea580c; }
+
+.lang-options { display: flex; gap: 8px; }
+.lang-btn { flex: 1; padding: 10px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: white; font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.2s; color: #374151; }
+.lang-btn.selected { border-color: #f97316; background: #fff7ed; color: #ea580c; }
+
+.optional { font-size: 10px; background: #f3f4f6; color: #9ca3af; border-radius: 6px; padding: 1px 6px; margin-left: 6px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+.save-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg,#f97316,#ea580c); color: white; font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; margin-top: 8px; }
+.save-btn:hover { opacity: 0.88; }
+.save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.toast { display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #0f172a; color: white; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 600; z-index: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.25); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">
+    <span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span>
+    Sento <span style="background:#f97316;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:0.5px;">RUN</span>
+  </a>
+  <a href="/auth/logout" style="color:rgba(255,255,255,0.55);text-decoration:none;font-size:12px;font-weight:600;">Salir</a>
+</nav>
+
+<div class="page">
+  <a href="/" class="back-link">← Volver al dashboard</a>
+
+  <div class="profile-header">
+    {% if picture_url %}
+    <img src="{{ picture_url }}" alt="" class="profile-avatar">
+    {% else %}
+    <div class="profile-avatar-placeholder">{{ (display_name or 'A')[0].upper() }}</div>
+    {% endif %}
+    <div>
+      <div class="profile-name">{{ display_name }}</div>
+      <div class="profile-email">{{ email }}</div>
+    </div>
+  </div>
+
+  <!-- Datos básicos -->
+  <div class="card">
+    <div class="card-title">Datos personales</div>
+
+    <div class="field">
+      <label>Fecha de nacimiento</label>
+      <input type="date" id="birth_date" value="{{ birth_date }}" max="{{ today }}">
+    </div>
+
+    <div class="field">
+      <label>Sexo</label>
+      <div class="sex-options">
+        <button type="button" class="sex-btn {% if sex == 'male' %}selected{% endif %}" data-val="male" onclick="selectSex(this)">Hombre</button>
+        <button type="button" class="sex-btn {% if sex == 'female' %}selected{% endif %}" data-val="female" onclick="selectSex(this)">Mujer</button>
+        <button type="button" class="sex-btn {% if sex == 'other' %}selected{% endif %}" data-val="other" onclick="selectSex(this)">Otro</button>
+      </div>
+      <input type="hidden" id="sex" value="{{ sex }}">
+    </div>
+  </div>
+
+  <!-- Entrenamiento habitual -->
+  <div class="card">
+    <div class="card-title">Entrenamiento habitual</div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Días que corres / semana</label>
+        <input type="number" id="weekly_days" min="0" max="7" value="{{ weekly_days }}" placeholder="Ej: 4">
+      </div>
+      <div class="field">
+        <label>Km habituales / semana</label>
+        <input type="number" id="weekly_km" min="0" max="300" step="0.5" value="{{ weekly_km if weekly_km else '' }}" placeholder="Ej: 35">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Día preferido para tu carrera larga <span class="optional">opcional</span></label>
+      <select id="long_run_day">
+        <option value="">Sin preferencia</option>
+        {% for d in ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'] %}
+        <option value="{{ d }}" {% if long_run_day == d %}selected{% endif %}>{{ d|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Distancia más larga que has corrido (km) <span class="optional">opcional</span></label>
+      <input type="number" id="longest_run_km" min="0" max="250" step="0.1" value="{{ longest_run_km if longest_run_km else '' }}" placeholder="Ej: 21.1">
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Tiempo en completarla <span class="optional">opcional</span></label>
+        <input type="text" id="longest_run_time" value="{{ longest_run_time }}" placeholder="HH:MM:SS">
+        <div class="hint">Ej: 2:15:30</div>
+      </div>
+      <div class="field">
+        <label>¿Cuándo fue? <span class="optional">opcional</span></label>
+        <input type="date" id="longest_run_date" value="{{ longest_run_date }}">
+      </div>
+    </div>
+  </div>
+
+  <!-- Tiempos de referencia -->
+  <div class="card">
+    <div class="card-title">Tiempos de referencia <span class="optional" style="font-size:12px;">opcional</span></div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>5 km</label>
+        <input type="text" id="ref_5k" value="{{ ref_5k }}" placeholder="MM:SS  Ej: 25:30">
+      </div>
+      <div class="field">
+        <label>10 km</label>
+        <input type="text" id="ref_10k" value="{{ ref_10k }}" placeholder="MM:SS  Ej: 52:00">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>21 km (media)</label>
+        <input type="text" id="ref_21k" value="{{ ref_21k }}" placeholder="HH:MM  Ej: 1:55:00">
+      </div>
+      <div class="field">
+        <label>42 km (maratón)</label>
+        <input type="text" id="ref_42k" value="{{ ref_42k }}" placeholder="HH:MM  Ej: 4:10:00">
+      </div>
+    </div>
+  </div>
+
+  <!-- Idioma -->
+  <div class="card">
+    <div class="card-title">Idioma</div>
+    <div class="field" style="margin-bottom:0;">
+      <div class="lang-options">
+        <button type="button" class="lang-btn {% if lang == 'es' or not lang %}selected{% endif %}" data-val="es" onclick="selectLang(this)">🇲🇽 Español</button>
+        <button type="button" class="lang-btn {% if lang == 'en' %}selected{% endif %}" data-val="en" onclick="selectLang(this)">🇺🇸 English</button>
+      </div>
+      <input type="hidden" id="lang" value="{{ lang or 'es' }}">
+    </div>
+  </div>
+
+  <button class="save-btn" id="saveBtn" onclick="save()">Guardar cambios</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const today = new Date().toISOString().split('T')[0];
+document.querySelectorAll('input[type=date]').forEach(el => { if (!el.id.includes('longest')) el.max = today; });
+
+let selectedSex = document.getElementById('sex').value;
+let selectedLang = document.getElementById('lang').value;
+
+function selectSex(btn) {
+  document.querySelectorAll('.sex-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedSex = btn.dataset.val;
+  document.getElementById('sex').value = selectedSex;
+}
+
+function selectLang(btn) {
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedLang = btn.dataset.val;
+  document.getElementById('lang').value = selectedLang;
+}
+
+function showToast(msg, ok) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = ok ? '#166534' : '#991b1b';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+async function save() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando…';
+
+  // Save lang separately if changed
+  const langVal = document.getElementById('lang').value;
+  try {
+    await fetch('/user/lang', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({lang: langVal})
+    });
+  } catch(e) {}
+
+  const payload = {
+    birth_date:       document.getElementById('birth_date').value,
+    sex:              selectedSex,
+    weekly_days:      parseInt(document.getElementById('weekly_days').value) || 0,
+    weekly_km:        parseFloat(document.getElementById('weekly_km').value) || 0,
+    longest_run_km:   parseFloat(document.getElementById('longest_run_km').value) || 0,
+    longest_run_time: document.getElementById('longest_run_time').value.trim(),
+    longest_run_date: document.getElementById('longest_run_date').value,
+    ref_5k:           document.getElementById('ref_5k').value.trim(),
+    ref_10k:          document.getElementById('ref_10k').value.trim(),
+    ref_21k:          document.getElementById('ref_21k').value.trim(),
+    ref_42k:          document.getElementById('ref_42k').value.trim(),
+    long_run_day:     document.getElementById('long_run_day').value,
+  };
+
+  try {
+    const res = await fetch('/user/profile', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if (res.ok) {
+      showToast('✓ Perfil guardado', true);
+      if (langVal !== '{{ lang }}') setTimeout(() => location.reload(), 800);
+    } else {
+      showToast('❌ ' + (d.error || 'Error al guardar'), false);
+    }
+  } catch(e) {
+    showToast('❌ Error de conexión', false);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Guardar cambios';
+}
+</script>
+</body>
+</html>

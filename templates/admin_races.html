@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Competencias — Admin Sento Run</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
+  .navbar { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar-brand { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+  .navbar-badge { background: #ef4444; color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .navbar-links { display: flex; gap: 16px; align-items: center; font-size: 14px; }
+  .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; transition: color 0.2s; }
+  .navbar-links a:hover { color: white; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 28px 16px; }
+  h1 { font-size: 24px; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 24px; }
+
+  /* New race form */
+  .new-race-card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); padding: 20px 24px; margin-bottom: 28px; border: 2px dashed #e2e8f0; }
+  .new-race-card h2 { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 14px; }
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; }
+  .form-group input, .form-group select {
+    border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 8px 12px;
+    font-size: 13px; color: #0f172a; background: #f8fafc; outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: #6366f1; background: white; }
+  .form-group.name-group { flex: 1; min-width: 200px; }
+  .form-group.type-group { min-width: 140px; }
+  .form-group.date-group { min-width: 150px; }
+  .btn-add { background: #0f172a; color: white; border: none; border-radius: 8px; padding: 8px 18px;
+    font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+  .btn-add:hover { background: #1e293b; }
+  .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+  .form-msg { font-size: 12px; margin-top: 8px; display: none; }
+  .form-msg.error { color: #dc2626; }
+  .form-msg.ok { color: #16a34a; }
+
+  /* Race grid */
+  .stats-bar { font-size: 14px; color: #555; margin-bottom: 20px; }
+  .empty { text-align: center; padding: 64px; color: #aaa; font-size: 15px; }
+  .race-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+  .race-card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); overflow: hidden; }
+
+  /* Race header — view mode */
+  .race-header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 20px; }
+  .race-header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .race-header-info { flex: 1; }
+  .race-name { font-size: 16px; font-weight: 800; color: white; margin-bottom: 4px; }
+  .race-meta { font-size: 12px; color: rgba(255,255,255,0.65); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+  .header-actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: 10px; }
+  .btn-edit { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.8);
+    border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s; white-space: nowrap; }
+  .btn-edit:hover { background: rgba(255,255,255,0.22); color: white; }
+  .btn-delete { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.6);
+    border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s, color 0.15s; white-space: nowrap; }
+  .btn-delete:hover { background: rgba(239,68,68,0.7); border-color: transparent; color: white; }
+
+  /* Edit form — inside card header */
+  .edit-form { display: none; margin-top: 14px; background: rgba(255,255,255,0.07); border-radius: 10px; padding: 14px; }
+  .edit-form.open { display: block; }
+  .edit-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .edit-field { display: flex; flex-direction: column; gap: 3px; }
+  .edit-field.ef-name { flex: 1; min-width: 160px; }
+  .edit-field.ef-type { min-width: 130px; }
+  .edit-field.ef-date { min-width: 140px; }
+  .edit-field label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(255,255,255,0.5); }
+  .edit-field input, .edit-field select {
+    border: 1.5px solid rgba(255,255,255,0.2); border-radius: 7px; padding: 7px 10px;
+    font-size: 13px; color: white; background: rgba(255,255,255,0.1); outline: none;
+    transition: border-color 0.15s; font-family: inherit;
+  }
+  .edit-field input::placeholder { color: rgba(255,255,255,0.35); }
+  .edit-field input:focus, .edit-field select:focus { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.15); }
+  .edit-field select option { background: #1e293b; color: white; }
+  .edit-actions { display: flex; gap: 8px; }
+  .btn-save { background: #22c55e; color: white; border: none; border-radius: 7px; padding: 7px 16px;
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.15s; }
+  .btn-save:hover { opacity: 0.88; }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-cancel-edit { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); border: none;
+    border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-cancel-edit:hover { background: rgba(255,255,255,0.18); }
+  .edit-msg { font-size: 11px; margin-left: 8px; }
+  .edit-msg.error { color: #fca5a5; }
+  .edit-msg.ok { color: #86efac; }
+
+  .race-body { padding: 16px 20px; }
+  .participants-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 10px; }
+  .participant-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+  .participant-row:last-child { border-bottom: none; }
+  .p-name { font-weight: 600; color: #0f172a; }
+  .p-email { font-size: 11px; color: #9ca3af; }
+  .p-stats { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .stat-pill { background: #f3f4f6; border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; }
+  .stat-pill.pace { background: #fff7ed; color: #ea580c; }
+  .stat-pill.km { background: #eff6ff; color: #2563eb; }
+  .no-participants { color: #bbb; font-size: 13px; padding: 8px 0; }
+  .admin-badge { background: rgba(99,102,241,0.15); color: #6366f1; font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 6px; margin-left: 6px; vertical-align: middle; }
+  @media (max-width: 640px) {
+    .race-grid { grid-template-columns: 1fr; }
+    .p-stats { justify-content: flex-start; margin-top: 4px; }
+    .participant-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .form-row { flex-direction: column; }
+    .form-group.name-group, .form-group.type-group, .form-group.date-group { min-width: 0; width: 100%; }
+    .btn-add { width: 100%; }
+    .navbar-links { display: none; }
+    .edit-row { flex-direction: column; }
+    .edit-field.ef-name, .edit-field.ef-type, .edit-field.ef-date { min-width: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">
+    🏃 Sento Run
+    <span class="navbar-badge">ADMIN</span>
+  </div>
+  <div class="navbar-links">
+    <a href="/admin/">← Panel principal</a>
+    <a href="/admin/weekly-summaries">📊 Semanas</a>
+    <a href="/admin/feedback">💬 Feedback</a>
+    <a href="/admin/coaching-rules">🧠 Reglas IA</a>
+    <a href="/">Mi dashboard</a>
+    <a href="/auth/logout">Cerrar sesión</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>🏁 Competencias registradas</h1>
+  <p class="subtitle">Carreras que los atletas han configurado como objetivo. Cuando dos o más atletas corren la misma carrera quedan agrupados aquí.</p>
+
+  <!-- Nueva competencia -->
+  <div class="new-race-card">
+    <h2>+ Dar de alta una competencia</h2>
+    <div class="form-row">
+      <div class="form-group name-group">
+        <label>Nombre de la carrera</label>
+        <input type="text" id="race-name" placeholder="ej. Maratón de la Ciudad de México" maxlength="200">
+      </div>
+      <div class="form-group type-group">
+        <label>Tipo</label>
+        <select id="race-type">
+          <option value="5K">5K</option>
+          <option value="10K">10K</option>
+          <option value="Media maratón">Media maratón</option>
+          <option value="Maratón" selected>Maratón</option>
+          <option value="Trail">Trail</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group date-group">
+        <label>Fecha del evento</label>
+        <input type="date" id="race-date">
+      </div>
+      <button class="btn-add" id="btn-add-race" onclick="addRace()">Dar de alta</button>
+    </div>
+    <div class="form-msg" id="form-msg"></div>
+  </div>
+
+  <div id="races-section">
+  {% if not races %}
+  <div class="empty" id="empty-state">
+    <div style="font-size:40px;margin-bottom:12px;">🏁</div>
+    <div>Aún no hay competencias registradas.</div>
+    <div style="font-size:13px;margin-top:6px;">Usa el formulario de arriba para dar de alta una carrera.</div>
+  </div>
+  {% else %}
+
+  {% set total_assigned = admin_assigned.values() | map('length') | sum %}
+  <div class="stats-bar">
+    <strong>{{ races | length }}</strong> carrera{{ 's' if races | length != 1 else '' }} registrada{{ 's' if races | length != 1 else '' }} ·
+    <strong>{{ (races | sum(attribute='participant_count')) + total_assigned }}</strong> participación{{ 'es' if ((races | sum(attribute='participant_count')) + total_assigned) != 1 else '' }} en total
+  </div>
+
+  <div class="race-grid" id="race-grid">
+    {% for race in races %}
+    {% set rid = race.id %}
+    {% set rname = race.name or race.race_type %}
+    <div class="race-card" id="race-{{ rid }}">
+      <div class="race-header" id="race-hdr-{{ rid }}" style="{% if race.image_url %}background-image:url('{{ race.image_url }}');background-size:cover;background-position:center;position:relative;{% endif %}">
+        {% if race.image_url %}<div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(10,10,30,0.78),rgba(15,52,96,0.72));border-radius:0;"></div>{% endif %}
+        <div style="position:relative;">
+        <div class="race-header-top">
+          <div class="race-header-info">
+            <div class="race-name" id="display-name-{{ rid }}">
+              {{ rname }}
+              {% if race.get('admin_created') and race.participant_count == 0 %}
+                <span class="admin-badge">admin</span>
+              {% endif %}
+              {% if race.image_url %}
+                <span style="font-size:10px;background:rgba(255,255,255,0.2);border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:middle;">📷</span>
+              {% endif %}
+            </div>
+            <div class="race-meta" id="display-meta-{{ rid }}">
+              <span id="display-date-{{ rid }}">📅 {{ race.event_date }}</span>
+              <span id="display-type-{{ rid }}">🏃 {{ race.race_type }}</span>
+              <span>👥 {{ race.participant_count }} atleta{{ 's' if race.participant_count != 1 else '' }}</span>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="btn-edit" onclick="toggleEdit('{{ rid }}')">✏️ Editar</button>
+            <button class="btn-delete" onclick="deleteRace('{{ rid }}', '{{ rname | replace("'", "\\'") }}')">Eliminar</button>
+          </div>
+        </div>
+
+        <!-- Edit form (hidden by default) -->
+        <div class="edit-form" id="edit-form-{{ rid }}">
+          <div class="edit-row">
+            <div class="edit-field ef-name">
+              <label>Nombre</label>
+              <input type="text" id="edit-name-{{ rid }}" value="{{ rname }}" maxlength="200">
+            </div>
+            <div class="edit-field ef-type">
+              <label>Tipo</label>
+              <select id="edit-type-{{ rid }}">
+                <option value="5K" {% if race.race_type == '5K' %}selected{% endif %}>5K</option>
+                <option value="10K" {% if race.race_type == '10K' %}selected{% endif %}>10K</option>
+                <option value="Media maratón" {% if race.race_type == 'Media maratón' %}selected{% endif %}>Media maratón</option>
+                <option value="Maratón" {% if race.race_type == 'Maratón' %}selected{% endif %}>Maratón</option>
+                <option value="Trail" {% if race.race_type == 'Trail' %}selected{% endif %}>Trail</option>
+                <option value="Otro" {% if race.race_type == 'Otro' %}selected{% endif %}>Otro</option>
+              </select>
+            </div>
+            <div class="edit-field ef-date">
+              <label>Fecha</label>
+              <input type="date" id="edit-date-{{ rid }}" value="{{ race.event_date }}">
+            </div>
+          </div>
+          <div class="edit-actions">
+            <button class="btn-save" id="save-btn-{{ rid }}" onclick="saveRace('{{ rid }}')">Guardar</button>
+            <button class="btn-cancel-edit" onclick="toggleEdit('{{ rid }}')">Cancelar</button>
+            <span class="edit-msg" id="edit-msg-{{ rid }}"></span>
+          </div>
+          <!-- Image upload -->
+          <div style="border-top:1px solid rgba(255,255,255,0.1);margin-top:12px;padding-top:12px;">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:rgba(255,255,255,0.5);display:block;margin-bottom:6px;">Foto de portada</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="file" id="img-input-{{ rid }}" accept="image/*" style="font-size:12px;color:rgba(255,255,255,0.7);flex:1;min-width:0;max-width:260px;">
+              <button onclick="uploadImage('{{ rid }}')" style="background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.25);border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📷 Subir foto</button>
+              <span id="img-msg-{{ rid }}" style="font-size:11px;"></span>
+            </div>
+            {% if race.image_url %}
+            <div style="margin-top:8px;">
+              <img id="img-preview-{{ rid }}" src="{{ race.image_url }}" alt="foto" style="height:60px;border-radius:6px;object-fit:cover;max-width:120px;">
+            </div>
+            {% else %}
+            <div id="img-preview-{{ rid }}" style="margin-top:8px;"></div>
+            {% endif %}
+          </div>
+        </div>
+        </div><!-- /relative wrapper -->
+      </div>
+
+      <div class="race-body">
+        <div class="participants-title">Atletas inscritos</div>
+        {% set participants = race.get('participants', {}) %}
+        {% set assigned = admin_assigned.get(rid, []) %}
+        {% set assigned_uids = assigned | map(attribute='uid') | list %}
+        {% if participants or assigned %}
+          {% for uid, p in participants.items() %}
+          {% if uid not in assigned_uids %}
+          <div class="participant-row">
+            <div>
+              <div class="p-name">{{ p.get('name', '—') }}</div>
+              <div class="p-email">{{ p.get('email', '') }}</div>
+            </div>
+            <div class="p-stats">
+              {% if p.get('pace_target') %}<span class="stat-pill pace">⚡ {{ p.pace_target }} /km</span>{% endif %}
+              {% if p.get('weekly_peak_km') %}<span class="stat-pill km">📦 {{ p.weekly_peak_km }} km</span>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+          {% for p in assigned %}
+          <div class="participant-row">
+            <div>
+              <div class="p-name">{{ p.name }} <span class="admin-badge">vinculado</span></div>
+              <div class="p-email">{{ p.email }}</div>
+            </div>
+            <div class="p-stats">
+              {% if p.pace_target %}<span class="stat-pill pace">⚡ {{ p.pace_target }} /km</span>{% endif %}
+              {% if p.weekly_peak_km %}<span class="stat-pill km">📦 {{ p.weekly_peak_km }} km</span>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="no-participants">Sin participantes registrados</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  </div>
+</div>
+
+<script>
+function toggleEdit(raceId) {
+  const form = document.getElementById(`edit-form-${raceId}`);
+  form.classList.toggle('open');
+  const msg = document.getElementById(`edit-msg-${raceId}`);
+  if (msg) { msg.textContent = ''; msg.className = 'edit-msg'; }
+}
+
+async function saveRace(raceId) {
+  const name = document.getElementById(`edit-name-${raceId}`).value.trim();
+  const race_type = document.getElementById(`edit-type-${raceId}`).value;
+  const event_date = document.getElementById(`edit-date-${raceId}`).value;
+  const btn = document.getElementById(`save-btn-${raceId}`);
+  const msg = document.getElementById(`edit-msg-${raceId}`);
+
+  if (!name || !event_date) {
+    msg.textContent = 'Nombre y fecha son requeridos.';
+    msg.className = 'edit-msg error';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  msg.textContent = '';
+
+  try {
+    const res = await fetch(`/admin/races/${raceId}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, race_type, event_date}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.error || 'Error al guardar.';
+      msg.className = 'edit-msg error';
+      return;
+    }
+    // Update displayed values without reload
+    document.getElementById(`display-name-${raceId}`).childNodes[0].textContent = name + ' ';
+    document.getElementById(`display-date-${raceId}`).textContent = `📅 ${event_date}`;
+    document.getElementById(`display-type-${raceId}`).textContent = `🏃 ${race_type}`;
+    msg.textContent = '✓ Guardado';
+    msg.className = 'edit-msg ok';
+    setTimeout(() => toggleEdit(raceId), 900);
+  } catch(e) {
+    msg.textContent = 'Error de red.';
+    msg.className = 'edit-msg error';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
+  }
+}
+
+async function addRace() {
+  const name = document.getElementById('race-name').value.trim();
+  const race_type = document.getElementById('race-type').value;
+  const event_date = document.getElementById('race-date').value;
+  const btn = document.getElementById('btn-add-race');
+  const msg = document.getElementById('form-msg');
+
+  msg.style.display = 'none';
+  if (!name || !event_date) {
+    showMsg('Completa el nombre y la fecha.', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  try {
+    const res = await fetch('/admin/races', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, race_type, event_date}),
+    });
+    const data = await res.json();
+    if (!res.ok) { showMsg(data.error || 'Error al guardar.', 'error'); return; }
+    showMsg('Competencia dada de alta correctamente.', 'ok');
+    document.getElementById('race-name').value = '';
+    document.getElementById('race-date').value = '';
+    setTimeout(() => location.reload(), 800);
+  } catch(e) {
+    showMsg('Error de red. Intenta de nuevo.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Dar de alta';
+  }
+}
+
+async function deleteRace(raceId, raceName) {
+  if (!confirm(`¿Eliminar la competencia "${raceName}"? Esta acción no se puede deshacer.`)) return;
+  try {
+    const res = await fetch(`/admin/races/${raceId}`, {method: 'DELETE'});
+    if (!res.ok) { alert('Error al eliminar.'); return; }
+    const card = document.getElementById(`race-${raceId}`);
+    if (card) card.remove();
+  } catch(e) {
+    alert('Error de red. Intenta de nuevo.');
+  }
+}
+
+async function uploadImage(raceId) {
+  const input = document.getElementById(`img-input-${raceId}`);
+  const msg = document.getElementById(`img-msg-${raceId}`);
+  const preview = document.getElementById(`img-preview-${raceId}`);
+  if (!input.files || !input.files[0]) {
+    msg.textContent = 'Selecciona una imagen primero.';
+    msg.style.color = '#fca5a5';
+    return;
+  }
+  const file = input.files[0];
+  if (file.size > 20 * 1024 * 1024) {
+    msg.textContent = 'Imagen demasiado grande (máx 20 MB).';
+    msg.style.color = '#fca5a5';
+    return;
+  }
+  msg.textContent = 'Subiendo…';
+  msg.style.color = 'rgba(255,255,255,0.6)';
+  const fd = new FormData();
+  fd.append('image', file);
+  try {
+    const res = await fetch(`/admin/races/${raceId}/image`, {method: 'POST', body: fd});
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.error || 'Error al subir.';
+      msg.style.color = '#fca5a5';
+      return;
+    }
+    msg.textContent = '✓ Foto subida';
+    msg.style.color = '#86efac';
+    // Show preview
+    if (preview) {
+      preview.innerHTML = `<img src="${data.image_url}?t=${Date.now()}" alt="foto" style="height:60px;border-radius:6px;object-fit:cover;max-width:120px;">`;
+    }
+    // Mark header with photo icon
+    const nameEl = document.getElementById(`display-name-${raceId}`);
+    if (nameEl && !nameEl.querySelector('.photo-badge')) {
+      const badge = document.createElement('span');
+      badge.className = 'photo-badge';
+      badge.style.cssText = 'font-size:10px;background:rgba(255,255,255,0.2);border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:middle;';
+      badge.textContent = '📷';
+      nameEl.appendChild(badge);
+    }
+    // Reload to show hero image on card header
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) {
+    msg.textContent = 'Error de red.';
+    msg.style.color = '#fca5a5';
+  }
+}
+
+function showMsg(text, type) {
+  const msg = document.getElementById('form-msg');
+  msg.textContent = text;
+  msg.className = `form-msg ${type}`;
+  msg.style.display = 'block';
+}
+</script>
+</body>
+</html>

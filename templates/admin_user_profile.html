@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfil de atleta — Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
+  .navbar { background: linear-gradient(135deg,#1a1a2e,#0f3460); color: white; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar-brand { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .navbar-links { display: flex; gap: 16px; font-size: 13px; }
+  .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; }
+  .navbar-links a:hover { color: white; }
+  .container { max-width: 860px; margin: 0 auto; padding: 28px 16px; }
+  h1 { font-size: 20px; font-weight: 800; color: #1a1a2e; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 24px; }
+  .card { background: white; border-radius: 14px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .card-title { font-size: 14px; font-weight: 800; color: #1a1a2e; }
+  .date-badge { font-size: 11px; background: #f3f4f6; color: #6b7280; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+  .latest-badge { font-size: 11px; background: #dcfce7; color: #166534; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 500px) { .grid { grid-template-columns: 1fr; } }
+  .field { background: #f9fafb; border-radius: 8px; padding: 10px 12px; }
+  .field-label { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+  .field-value { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+  .field-value.empty { color: #d1d5db; font-weight: 400; font-style: italic; }
+  .no-history { text-align: center; padding: 48px; color: #bbb; font-size: 14px; }
+  .section-title { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px; }
+  .ref-times { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .ref-chip { background: #e8f0fe; color: #1a73e8; border-radius: 12px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="navbar-brand">🏃 Sento Run <span style="background:#ef4444;color:white;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px;">ADMIN</span></div>
+  <div class="navbar-links">
+    <a href="/admin/">← Panel admin</a>
+    <a href="/auth/logout">Salir</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>Perfil de atleta</h1>
+  <p class="sub">{{ email }} · {{ history | length }} registro(s) histórico(s)</p>
+
+  {% if not history %}
+    <div class="no-history">Este usuario aún no ha completado su perfil de atleta.</div>
+  {% else %}
+    {% for entry in history %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 Evaluación del {{ entry._date }}</div>
+        <div>
+          {% if loop.first %}<span class="latest-badge">✓ Más reciente</span>{% else %}<span class="date-badge">{{ entry._date }}</span>{% endif %}
+        </div>
+      </div>
+
+      <div class="section-title">Datos básicos</div>
+      <div class="grid">
+        <div class="field">
+          <div class="field-label">Fecha de nacimiento</div>
+          <div class="field-value {% if not entry.birth_date %}empty{% endif %}">
+            {% if entry.birth_date %}{{ entry.birth_date }}{% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Sexo</div>
+          <div class="field-value {% if not entry.sex %}empty{% endif %}">
+            {% if entry.sex == 'male' %}Hombre{% elif entry.sex == 'female' %}Mujer{% elif entry.sex %}{{ entry.sex }}{% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top:14px;">Entrenamiento habitual</div>
+      <div class="grid">
+        <div class="field">
+          <div class="field-label">Días / semana</div>
+          <div class="field-value {% if not entry.weekly_days %}empty{% endif %}">
+            {{ entry.weekly_days or '—' }}
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Km / semana</div>
+          <div class="field-value {% if not entry.weekly_km %}empty{% endif %}">
+            {% if entry.weekly_km %}{{ entry.weekly_km }} km{% else %}—{% endif %}
+          </div>
+        </div>
+        {% set lr = entry.longest_run or {} %}
+        <div class="field">
+          <div class="field-label">Distancia más larga</div>
+          <div class="field-value {% if not lr.distance_km %}empty{% endif %}">
+            {% if lr.distance_km %}{{ lr.distance_km }} km {% if lr.time %}({{ lr.time }}){% endif %}{% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Fecha de esa carrera</div>
+          <div class="field-value {% if not lr.date %}empty{% endif %}">
+            {{ lr.date or '—' }}
+          </div>
+        </div>
+      </div>
+
+      {% set ref = entry.reference_times or {} %}
+      {% if ref.values() | select | list %}
+      <div class="section-title" style="margin-top:14px;">Tiempos de referencia</div>
+      <div class="ref-times">
+        {% if ref['5k'] %}<span class="ref-chip">5K: {{ ref['5k'] }}</span>{% endif %}
+        {% if ref['10k'] %}<span class="ref-chip">10K: {{ ref['10k'] }}</span>{% endif %}
+        {% if ref['21k'] %}<span class="ref-chip">Media: {{ ref['21k'] }}</span>{% endif %}
+        {% if ref['42k'] %}<span class="ref-chip">Maratón: {{ ref['42k'] }}</span>{% endif %}
+      </div>
+      {% endif %}
+
+      <div class="section-title" style="margin-top:14px;">Preferencias</div>
+      <div class="grid">
+        <div class="field">
+          <div class="field-label">Día carrera larga</div>
+          <div class="field-value {% if not entry.long_run_day %}empty{% endif %}">
+            {{ entry.long_run_day or '—' }}
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Inicio del plan</div>
+          <div class="field-value">
+            {% if entry.plan_start_preference == 'future' and entry.plan_start_date %}
+              📅 {{ entry.plan_start_date }}
+            {% else %}
+              🚀 Lo antes posible
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>
+</body>
+</html>

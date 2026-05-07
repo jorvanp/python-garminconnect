@@ -1,20 +1,28 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Plan de entrenamiento — Sento Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f9; color: #222; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; color: #222; }
 
-  .navbar { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-  .navbar-brand { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
-  .navbar-links { display: flex; gap: 16px; align-items: center; }
+  .navbar { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; gap: 8px; }
+  .navbar-brand { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .navbar-links { display: flex; gap: 12px; align-items: center; }
   .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; transition: color 0.15s; }
   .navbar-links a:hover { color: white; }
   .breadcrumb { font-size: 12px; color: rgba(255,255,255,0.5); }
   .breadcrumb a { color: rgba(255,255,255,0.65); text-decoration: none; }
+  @media (max-width: 600px) {
+    .navbar-links .hide-mobile { display: none; }
+    .breadcrumb { display: none; }
+    .navbar { padding: 10px 14px; }
+  }
 
   .disclaimer-top { background: #fffbeb; border-bottom: 1px solid #fde68a; padding: 10px 24px; font-size: 12px; color: #78350f; display: flex; align-items: center; gap: 8px; }
 
@@ -22,7 +30,7 @@
 
   /* Plan header */
   .plan-header { background: white; border-radius: 16px; padding: 22px 26px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-  .plan-title { font-size: 22px; font-weight: 800; color: #1a1a2e; margin-bottom: 12px; }
+  .plan-title { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
   .plan-meta { display: flex; flex-wrap: wrap; gap: 10px; }
   .meta-chip { background: #f4f6f9; border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; color: #444; }
 
@@ -40,27 +48,38 @@
   .week-card.current { border-color: #22c55e; box-shadow: 0 2px 14px rgba(34,197,94,0.15); }
   .week-card.past { opacity: 0.6; }
 
-  .week-header { padding: 13px 18px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+  .week-header { padding: 13px 18px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; gap: 8px; }
   .week-header:hover { background: #f9fafb; }
-  .week-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .week-number-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .week-number { font-size: 13px; font-weight: 800; color: #1a1a2e; white-space: nowrap; }
-  .week-daterange { font-size: 12px; font-weight: 500; color: #6b7280; white-space: nowrap; }
-  .week-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #dcfce7; color: #166534; }
+  .week-left { display: flex; align-items: flex-start; gap: 8px; flex-direction: column; flex: 1; min-width: 0; }
+  .week-number-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .week-number { font-size: 13px; font-weight: 800; color: #0f172a; white-space: nowrap; }
+  .week-daterange { font-size: 11px; font-weight: 500; color: #6b7280; white-space: nowrap; }
+  .week-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #dcfce7; color: #166534; white-space: nowrap; }
   .week-phase { font-size: 12px; color: #6b7280; }
-  .week-focus { font-size: 12px; color: #9ca3af; font-style: italic; }
-  .week-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  .week-km { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+  .week-focus { font-size: 11px; color: #9ca3af; font-style: italic; }
+  .week-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .week-km { font-size: 13px; font-weight: 700; color: #0f172a; white-space: nowrap; }
   .week-toggle { font-size: 14px; color: #9ca3af; transition: transform 0.2s; }
   .week-card.open .week-toggle { transform: rotate(180deg); }
 
-  .week-body { display: none; padding: 0 18px 16px; }
+  .week-body { display: none; padding: 0 12px 14px; }
   .week-card.open .week-body { display: block; }
 
-  /* Workouts grid */
-  .workouts-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-  @media (max-width: 720px) { .workouts-grid { grid-template-columns: repeat(4, 1fr); } }
-  @media (max-width: 480px) { .workouts-grid { grid-template-columns: repeat(3, 1fr); } }
+  /* Workouts grid — 7 días en desktop, scroll horizontal en móvil */
+  .workouts-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  @media (max-width: 700px) {
+    .workouts-grid { overflow-x: auto; display: flex; gap: 6px; padding-bottom: 8px; }
+    .workout-cell { flex: 0 0 100px; min-height: 130px; }
+    .week-header { padding: 11px 14px; }
+    .week-body { padding: 0 8px 12px; }
+    .week-focus { display: none; }
+  }
+  @media (max-width: 400px) {
+    .workout-cell { min-width: 80px; }
+    .content { padding: 14px 10px 48px; }
+    .plan-header { padding: 16px; }
+    .plan-title { font-size: 18px; }
+  }
 
   .workout-cell { border-radius: 10px; padding: 8px 6px; text-align: center; }
   .workout-day-name { font-weight: 700; color: #6b7280; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
@@ -95,36 +114,79 @@
   .btn-action:hover { opacity: 0.85; }
   .btn-regen { background: #f4f6f9; border: 1px solid #d1d5db; color: #374151; }
   .btn-regen:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn-dashboard { background: #1a1a2e; color: white; }
+  .btn-dashboard { background: #0f172a; color: white; }
 
   .disclaimer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-top: 20px; font-size: 12px; color: #64748b; line-height: 1.65; }
 
   /* Generated date */
   .generated-note { font-size: 11px; color: #aaa; text-align: right; margin-top: 6px; }
 </style>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<meta property="og:image" content="/static/og-image.png">
 </head>
 <body>
 
 <nav class="navbar">
-  <div class="navbar-brand">🏃 Sento Run</div>
-  <div class="breadcrumb"><a href="/">Dashboard</a> › Plan de entrenamiento</div>
+  <div class="navbar-brand">
+    <span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span> Sento <span style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:6px;letter-spacing:0.5px;margin-left:2px;">RUN</span>
+    {% if _admin_viewing %}<span style="background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;">ADMIN: {{ _admin_user_email }}</span>{% endif %}
+  </div>
+  <div class="breadcrumb"><a href="{% if _admin_viewing %}/admin/{% else %}/{% endif %}">{% if _admin_viewing %}Admin{% else %}{{ _('Dashboard') }}{% endif %}</a> › {{ _('Plan de entrenamiento') }}</div>
   <div class="navbar-links">
-    <a href="/goal/setup">⚙️ Reconfigurar</a>
-    <a href="/">← Dashboard</a>
+    {% if _admin_viewing %}
+    <a href="/admin/">⚙️ Admin</a>
+    <a href="/admin/user/{{ _viewed_uid }}">← {{ _('Ver dashboard') }}</a>
+    {% else %}
+    <a href="/" style="color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;">← {{ _('Dashboard') }}</a>
+    <!-- User menu dropdown -->
+    <div style="position:relative;" id="userMenuWrap">
+      <button onclick="toggleUserMenu()" id="userMenuBtn"
+        style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:4px 10px 4px 4px;cursor:pointer;color:white;transition:background 0.2s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.14)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" style="width:26px;height:26px;border-radius:50%;border:2px solid #f97316;flex-shrink:0;" alt="">
+        {% else %}
+        <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ea580c);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0;">{{ (session.display_name or 'A')[0].upper() }}</div>
+        {% endif %}
+        <span style="font-weight:600;font-size:13px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ (session.display_name or '').split()[0] or '' }}</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="opacity:0.6;flex-shrink:0;"><path d="M2 3.5L5 6.5L8 3.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div id="userMenu" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);min-width:180px;overflow:hidden;z-index:200;">
+        <a href="/user/profile" style="display:flex;align-items:center;gap:10px;padding:13px 16px;text-decoration:none;color:#0f172a;font-size:13px;font-weight:600;transition:background 0.15s;border-bottom:1px solid #f3f4f6;"
+          onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+          <span style="font-size:16px;">👤</span> Mi perfil
+        </a>
+        <a href="/auth/logout" style="display:flex;align-items:center;gap:10px;padding:12px 16px;text-decoration:none;color:#ef4444;font-size:13px;font-weight:600;transition:background 0.15s;"
+          onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">
+          <span style="font-size:15px;">→</span> {{ _('Salir') }}
+        </a>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </nav>
 
 <div class="disclaimer-top">
-  ⚠️ <strong>Recomendación orientativa:</strong> Este plan fue generado por inteligencia artificial. Escucha a tu cuerpo y consulta con un profesional ante cualquier molestia.
+  ⚠️ <strong>{{ _('Recomendación orientativa:') }}</strong> {{ _('Este plan fue generado por inteligencia artificial. Escucha a tu cuerpo y consulta con un profesional ante cualquier molestia.') }}
 </div>
+
+{% if plan_stale and not _admin_viewing %}
+<div style="background:#fef3c7;border-bottom:2px solid #f59e0b;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <span style="font-size:13px;color:#92400e;font-weight:600;">⚠️ Tu objetivo cambió desde que se generó este plan. {% if can_regenerate %}Regenera el plan para que coincida con tu meta actual.{% else %}Podrás regenerarlo el {{ next_regen_date }}.{% endif %}</span>
+  {% if can_regenerate %}
+  <a href="/goal/setup" style="background:#f59e0b;color:white;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;">🤖 Reconfigurar con Sento AI</a>
+  {% endif %}
+</div>
+{% endif %}
 
 {% if generating %}
 <!-- Generating state — polls until ready -->
 <div class="content" style="text-align:center;padding-top:80px;">
-  <div style="font-size:48px;margin-bottom:20px;">🏃</div>
-  <div style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:10px;">Generando tu plan de entrenamiento</div>
-  <div style="font-size:14px;color:#6b7280;margin-bottom:32px;">Esto puede tomar unos segundos. No cierres esta página.</div>
-  <div style="display:inline-block;width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:#1a1a2e;border-radius:50%;animation:spin 0.9s linear infinite;margin-bottom:24px;"></div>
+  <img src="/static/logo-icon.png" alt="Sento Run" style="height:72px;width:72px;object-fit:contain;border-radius:14px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">
+  <div style="font-size:20px;font-weight:800;color:#0f172a;margin-bottom:10px;">{{ _('Generando tu plan de entrenamiento') }}</div>
+  <div style="font-size:14px;color:#6b7280;margin-bottom:32px;">{{ _('Esto puede tomar unos segundos. No cierres esta página.') }}</div>
+  <div style="display:inline-block;width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:#0f172a;border-radius:50%;animation:spin 0.9s linear infinite;margin-bottom:24px;"></div>
   <div id="genStatus" style="font-size:13px;color:#9ca3af;margin-top:8px;"></div>
 </div>
 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
@@ -149,16 +211,30 @@
 
   <!-- Plan header -->
   <div class="plan-header">
-    <div class="plan-title">{{ plan.title }}</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+      <div class="plan-title" style="margin-bottom:0;">{{ plan.title }}</div>
+      {% if not _admin_viewing %}
+        {% if can_regenerate %}
+        <a href="/goal/setup" style="display:inline-flex;align-items:center;gap:6px;background:#f4f6f9;border:1px solid #d1d5db;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:#374151;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f4f6f9'">
+          🤖 {{ _('Reconfigurar con Sento AI') }}
+        </a>
+        {% else %}
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:#9ca3af;white-space:nowrap;flex-shrink:0;cursor:not-allowed;" title="Disponible a partir del {{ next_regen_date }}">
+          🔒 {{ _('Reconfigurar con Sento AI') }}
+          <span style="font-size:10px;font-weight:500;color:#d1d5db;">· {{ next_regen_date }}</span>
+        </div>
+        {% endif %}
+      {% endif %}
+    </div>
     <div class="plan-meta">
-      {% if plan.plan_start_date %}<span class="meta-chip">📅 Inicio: {{ plan.plan_start_date }}</span>{% endif %}
-      {% if plan.event_date %}<span class="meta-chip">🏁 Evento: {{ plan.event_date }}</span>{% endif %}
-      {% if plan.goal_pace %}<span class="meta-chip">⏱ Ritmo meta: {{ plan.goal_pace }}</span>{% endif %}
-      {% if plan.weekly_peak_km %}<span class="meta-chip">📊 Pico: {{ plan.weekly_peak_km }} km/sem</span>{% endif %}
-      {% if plan.total_weeks %}<span class="meta-chip">🗓 {{ plan.total_weeks }} semanas</span>{% endif %}
+      {% if plan.plan_start_date %}<span class="meta-chip">📅 {{ _('Inicio:') }} {{ plan.plan_start_date }}</span>{% endif %}
+      {% if plan.event_date %}<span class="meta-chip">🏁 {{ _('Evento:') }} {{ plan.event_date }}</span>{% endif %}
+      {% if plan.goal_pace %}<span class="meta-chip">⏱ {{ _('Ritmo meta:') }} {{ plan.goal_pace }}</span>{% endif %}
+      {% if plan.weekly_peak_km %}<span class="meta-chip">📊 {{ _('Pico:') }} {{ plan.weekly_peak_km }} {{ _('km/sem') }}</span>{% endif %}
+      {% if plan.total_weeks %}<span class="meta-chip">🗓 {{ plan.total_weeks }} {{ _('semanas') }}</span>{% endif %}
     </div>
     {% if plan.generated_at %}
-    <div class="generated-note">Generado el {{ plan.generated_at }}</div>
+    <div class="generated-note">{{ _('Generado el') }} {{ plan.generated_at }}</div>
     {% endif %}
   </div>
 
@@ -166,20 +242,20 @@
   {% if plan.phases %}
   <div class="phases-bar">
     {% for phase in plan.phases %}
-    <div class="phase-chip">{{ phase.name }} · sem. {{ phase.start_week }}–{{ phase.end_week }}</div>
+    <div class="phase-chip">{{ phase.name }} · {{ _('sem.') }} {{ phase.start_week }}–{{ phase.end_week }}</div>
     {% endfor %}
   </div>
   {% endif %}
 
   <!-- Legend -->
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#f3f4f6;border:1px solid #d1d5db"></div> Descanso</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#dbeafe"></div> Rodaje suave</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#d1fae5"></div> Rodaje largo</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fed7aa"></div> Tempo</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fecaca"></div> Intervalos</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#ede9fe"></div> Cross / Fuerza</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fef9c3"></div> Carrera / Evento</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f3f4f6;border:1px solid #d1d5db"></div> {{ _('Descanso') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#dbeafe"></div> {{ _('Rodaje suave') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d1fae5"></div> {{ _('Rodaje largo') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fed7aa"></div> {{ _('Tempo') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fecaca"></div> {{ _('Intervalos') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ede9fe"></div> {{ _('Cross / Fuerza') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fef9c3"></div> {{ _('Carrera / Evento') }}</div>
   </div>
 
   {% set workout_icons = {'rest': '😴', 'easy': '🏃', 'tempo': '⚡', 'intervals': '🔥', 'long': '🌿', 'cross': '💪', 'race': '🏁'} %}
@@ -192,11 +268,11 @@
     <div class="week-header" onclick="toggleWeek({{ week.week_number }})">
       <div class="week-left">
         <div class="week-number-row">
-          <div class="week-number">Semana {{ week.week_number }}</div>
+          <div class="week-number">{{ _('Semana') }} {{ week.week_number }}</div>
           {% if week.week_number in week_dates %}
           <div class="week-daterange">{{ week_dates[week.week_number].start }} – {{ week_dates[week.week_number].end }}</div>
           {% endif %}
-          {% if is_current %}<span class="week-badge">← Esta semana</span>{% endif %}
+          {% if is_current %}<span class="week-badge">← {{ _('Esta semana') }}</span>{% endif %}
         </div>
         <div class="week-phase">{{ week.phase }}</div>
         <div class="week-focus">{{ week.focus }}</div>
@@ -225,8 +301,8 @@
 
   <!-- Actions -->
   <div class="actions-row">
-    <button class="btn-action btn-regen" id="regenBtn" onclick="regeneratePlan()">🔄 Regenerar plan</button>
-    <a href="/" class="btn-action btn-dashboard">← Volver al dashboard</a>
+    <button class="btn-action btn-regen" id="regenBtn" onclick="regeneratePlan()">🔄 {{ _('Regenerar plan') }}</button>
+    <a href="/" class="btn-action btn-dashboard">← {{ _('Volver al dashboard') }}</a>
   </div>
 
   <!-- Disclaimer -->
@@ -280,6 +356,18 @@
     const el = document.getElementById('week-{{ current_week }}');
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
     {% endif %}
+  });
+
+  function toggleUserMenu() {
+    const m = document.getElementById('userMenu');
+    if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  }
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('userMenuWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      const m = document.getElementById('userMenu');
+      if (m) m.style.display = 'none';
+    }
   });
 </script>
 </body>

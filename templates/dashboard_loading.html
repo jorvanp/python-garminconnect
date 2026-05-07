@@ -1,13 +1,16 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ get_locale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sento Run — Cargando</title>
+<title>Sento Run — {{ _('Cargando') }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     min-height: 100vh;
     display: flex;
@@ -39,7 +42,7 @@
   }
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #6366f1, #a855f7);
+    background: linear-gradient(90deg, #f97316, #ea580c);
     border-radius: 10px;
     width: 0%;
     transition: width 0.6s ease;
@@ -93,14 +96,32 @@
     padding: 4px 0;
   }
   .btn-cached:hover { color: rgba(255,255,255,0.75); }
+  .btn-continue {
+    display: none;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    border: none;
+    color: white;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    margin-bottom: 8px;
+    width: 100%;
+  }
+  .btn-continue:hover { opacity: 0.88; }
 </style>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<meta property="og:image" content="/static/og-image.png">
 </head>
 <body>
 
 <div class="card">
-  <div class="logo">🏃</div>
-  <div class="title">Hola, {{ user_name }}</div>
-  <div class="subtitle" id="subtitle">Estamos actualizando tus datos del día.<br>Esto tarda menos de un minuto.</div>
+  <img src="/static/logo-icon.png" alt="Sento Run" style="height:72px;width:72px;object-fit:contain;border-radius:16px;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;">
+  <div class="title">{{ _('Hola,') }} {{ user_name }}</div>
+  <div class="subtitle" id="subtitle">{{ _('Estamos actualizando tus datos del día.') }}<br>{{ _('Esto tarda menos de un minuto.') }}</div>
 
   <div class="progress-track">
     <div class="progress-fill" id="progressFill"></div>
@@ -110,18 +131,27 @@
   </div>
 
   <div class="error-box" id="errorBox"></div>
-  <button class="btn-retry" id="retryBtn" onclick="location.reload()">🔄 Reintentar</button>
-  <button class="btn-cached" id="cachedBtn" onclick="window.location.href='/?cached=1'">Ver últimos datos disponibles</button>
+  <button class="btn-continue" id="continueBtn" onclick="window.location.href='/'">{{ _('Continuar sin Garmin →') }}</button>
+  <button class="btn-retry" id="retryBtn" onclick="location.reload()">🔄 {{ _('Reintentar') }}</button>
+  <button class="btn-cached" id="cachedBtn" onclick="window.location.href='/?cached=1'">{{ _('Ver últimos datos disponibles') }}</button>
 </div>
 
 <script>
+const _MSG_READY = "{{ _('¡Listo! Cargando tu dashboard…') }}";
+const _MSG_TIMEOUT = "{{ _('La actualización está tardando demasiado. Puede haber un problema de conexión con Garmin.') }}";
+const _MSG_ERROR = "{{ _('Ocurrió un error al actualizar. Intenta de nuevo.') }}";
+const _MSG_BLOCKED = "{{ _('Garmin no está disponible en este momento.') }}";
+const _MSG_BLOCKED_SUBTITLE = "{{ _('Puedes usar Sento con importación manual de actividades (CSV).') }}";
+const _MSG_RECONNECT = "{{ _('🔌 Reconectar Garmin') }}";
 const fill = document.getElementById('progressFill');
 const msg  = document.getElementById('progressMsg');
 const errBox = document.getElementById('errorBox');
 const retryBtn = document.getElementById('retryBtn');
 const cachedBtn = document.getElementById('cachedBtn');
+const continueBtn = document.getElementById('continueBtn');
 
 let pollCount = 0;
+let errorRetried = false;  // auto-retry once on pct=-1 before showing error
 const START_TIME = Date.now();
 const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 
@@ -138,7 +168,7 @@ async function poll() {
 
   // Hard timeout: if 3 minutes pass with no resolution, offer escape hatch
   if (Date.now() - START_TIME > TIMEOUT_MS) {
-    showError('La actualización está tardando demasiado. Puede haber un problema de conexión con Garmin.', true);
+    showError(_MSG_TIMEOUT, true);
     return;
   }
 
@@ -158,17 +188,31 @@ async function poll() {
     if (data.ready) {
       fill.style.width = '100%';
       fill.style.background = '#22c55e';
-      msg.textContent = '¡Listo! Cargando tu dashboard…';
+      msg.textContent = _MSG_READY;
       setTimeout(() => { window.location.href = '/'; }, 700);
       return;
     }
 
     if (data.pct === -1) {
       const isReconnect = data.needs_reconnect || (data.msg && data.msg.toLowerCase().includes('reconecta'));
-      showError(data.msg || 'Ocurrió un error al actualizar. Intenta de nuevo.', true);
-      if (isReconnect) {
-        retryBtn.textContent = '🔌 Reconectar Garmin';
-        retryBtn.onclick = () => { window.location.href = '/garmin-reconnect'; };
+      if (data.garmin_blocked) {
+        errBox.textContent = data.msg || _MSG_BLOCKED;
+        errBox.style.display = 'block';
+        continueBtn.style.display = 'block';
+        document.getElementById('subtitle').textContent = _MSG_BLOCKED_SUBTITLE;
+        msg.textContent = '';
+      } else if (!errorRetried && !isReconnect) {
+        // First error: auto-retry after 30s (covers 429 from rolling deploys)
+        errorRetried = true;
+        msg.innerHTML = '⏳ Reintentando conexión en 30 segundos…';
+        fill.style.width = '20%';
+        setTimeout(poll, 30000);
+      } else {
+        showError(data.msg || _MSG_ERROR, true);
+        if (isReconnect) {
+          retryBtn.textContent = _MSG_RECONNECT;
+          retryBtn.onclick = () => { window.location.href = '/garmin-reconnect'; };
+        }
       }
       return;
     }

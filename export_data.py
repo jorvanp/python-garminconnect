@@ -84,25 +84,28 @@ def init_api(token_dir: str = None) -> Garmin | None:
     return None
 
 
+MONTHS_TO_FETCH = 2  # max history to fetch from Garmin (avoids rate limits)
+
+
 def fetch_data_monthly(api: Garmin) -> dict:
-    """Fetch health and activity data for the last 6 full months + current month."""
+    """Fetch health and activity data for the last MONTHS_TO_FETCH full months + current month."""
     today = today_cdmx()
-    
+
     current_year = today.year
     current_month = today.month
-    
-    # Calculate 6 full months ago
-    start_month = current_month - 6
+
+    # Calculate start month
+    start_month = current_month - MONTHS_TO_FETCH
     start_year = current_year
     if start_month <= 0:
         start_month += 12
         start_year -= 1
-        
+
     start_date = date(start_year, start_month, 1)
-    
+
     export_data = {
         "metadata": {
-            "period": "Last 6 full months + current month",
+            "period": f"Last {MONTHS_TO_FETCH} full months + current month",
             "end_date": today.isoformat(),
             "start_date": start_date.isoformat()
         },
@@ -158,7 +161,6 @@ def fetch_data_monthly(api: Garmin) -> dict:
     except Exception as e:
         logger.warning(f"Could not fetch some activities: {e}")
 
-    # For daily stats, 6 months is ~190 days. 
     logger.info(f"Fetching daily stats from {start_date.isoformat()} to {today.isoformat()}...")
     logger.info("This will take a few minutes. Please wait...")
     
@@ -214,16 +216,15 @@ def fetch_data_monthly(api: Garmin) -> dict:
 
 def fetch_data_current_month(api: Garmin, existing_data: dict) -> dict:
     """
-    Incremental refresh covering the last 6 months + today.
+    Incremental refresh covering the last MONTHS_TO_FETCH months + today.
     - Days already stored and older than yesterday are skipped (fast).
     - Yesterday and today are always re-fetched (Garmin finalises data with ~24h lag).
-    - Missing days in any month within the 6-month window are backfilled.
+    - Missing days in any month within the window are backfilled.
     """
     today = today_cdmx()
     yesterday = today - timedelta(days=1)
 
-    # Start date: 6 months back (same day-1 logic as onboarding)
-    start_month = today.month - 6
+    start_month = today.month - MONTHS_TO_FETCH
     start_year = today.year
     if start_month <= 0:
         start_month += 12
@@ -233,7 +234,7 @@ def fetch_data_current_month(api: Garmin, existing_data: dict) -> dict:
     if not existing_data:
         existing_data = {
             "metadata": {
-                "period": "Last 6 months + today (incremental)",
+                "period": f"Last {MONTHS_TO_FETCH} months + today (incremental)",
                 "end_date": today.isoformat(),
                 "start_date": start_date.isoformat(),
             },
@@ -252,7 +253,7 @@ def fetch_data_current_month(api: Garmin, existing_data: dict) -> dict:
     except Exception as e:
         logger.warning(f"Could not fetch profile: {e}")
 
-    # Ensure month buckets exist for the full 6-month window
+    # Ensure month buckets exist for the window
     cur = start_date
     while cur <= today:
         mk = cur.strftime("%Y-%m")
@@ -280,7 +281,7 @@ def fetch_data_current_month(api: Garmin, existing_data: dict) -> dict:
 
         cur = next_m
 
-    # Fetch daily stats incrementally across the full 6-month window
+    # Fetch daily stats incrementally across the window
     logger.info(f"Fetching daily stats {start_date} → {today} (incremental)...")
     cur = start_date
     while cur <= today:

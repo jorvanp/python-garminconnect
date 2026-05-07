@@ -121,6 +121,28 @@ fi
 
 ENV_VARS="GARMIN_BUCKET=$BUCKET_NAME,CRON_API_KEY=$CRON_KEY,GEMINI_API_KEY=${GEMINI_API_KEY:-},OAUTH_CLIENT_ID=$OAUTH_CLIENT_ID,OAUTH_CLIENT_SECRET=$OAUTH_CLIENT_SECRET,SESSION_SECRET=$SESSION_SECRET"
 
+# 2b. Aviso de usuarios activos — deploy puede interrumpir recargas en curso
+echo "⚠️  Verificando usuarios con actividad reciente (últimos 10 min)..."
+python3 - <<CHECKEOF 2>/dev/null || true
+import os, sys
+os.environ.setdefault('GOOGLE_CLOUD_PROJECT', '$PROJECT_ID')
+try:
+    from datetime import datetime, timedelta, timezone
+    from google.cloud import firestore
+    db = firestore.Client(project='$PROJECT_ID')
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    users = db.collection('users').stream()
+    active = [u.to_dict().get('email', u.id) for u in users
+              if (u.to_dict().get('last_refresh') or '') > cutoff]
+    if active:
+        print(f"   ⚠️  {len(active)} usuario(s) con refresh reciente: {', '.join(active)}")
+        print("      El deploy puede interrumpir su carga. Espera un momento o continúa.")
+    else:
+        print("   ✅ Sin usuarios con actividad reciente — momento seguro para deploy.")
+except Exception as e:
+    print(f"   (no se pudo verificar usuarios activos: {e})")
+CHECKEOF
+
 # 3. Construir imagen una sola vez y desplegar en ambas regiones
 echo "☁️  3/5 Construyendo imagen y desplegando en ambas regiones..."
 
@@ -158,28 +180,11 @@ SECONDARY_URL=$(gcloud run deploy $SERVICE_NAME \
     --format="value(status.url)")
 echo "   ✅ $SECONDARY_REGION: $SECONDARY_URL"
 
-# 4. Cloud Scheduler solo en región primaria (evita doble ejecución del cron)
-echo "⏰ 4/5 Configurando cron job en región primaria ($PRIMARY_REGION)..."
-
-JOB_NAME="garmin-hourly-refresh"
-gcloud scheduler jobs delete $JOB_NAME --location $PRIMARY_REGION --quiet &> /dev/null || true
-gcloud scheduler jobs create http $JOB_NAME \
-    --location $PRIMARY_REGION \
-    --schedule="0 5 * * *" \
-    --time-zone="America/Mexico_City" \
-    --uri="$PRIMARY_URL/internal/cron-refresh?apikey=$CRON_KEY" \
-    --http-method=GET \
-    --attempt-deadline=840s
-
-WARMUP_JOB="garmin-token-warmup"
-gcloud scheduler jobs delete $WARMUP_JOB --location $PRIMARY_REGION --quiet &> /dev/null || true
-gcloud scheduler jobs create http $WARMUP_JOB \
-    --location $PRIMARY_REGION \
-    --schedule="0 8 * * *" \
-    --time-zone="America/Mexico_City" \
-    --uri="$PRIMARY_URL/internal/token-warmup?apikey=$CRON_KEY" \
-    --http-method=GET \
-    --attempt-deadline=840s
+# 4. Eliminar cron jobs si existen (sync con Garmin desactivado)
+echo "🗑️  4/5 Eliminando cron jobs (sync Garmin desactivado)..."
+gcloud scheduler jobs delete garmin-hourly-refresh --location $PRIMARY_REGION --quiet &> /dev/null || true
+gcloud scheduler jobs delete garmin-token-warmup --location $PRIMARY_REGION --quiet &> /dev/null || true
+echo "   ✅ Cron jobs eliminados (o no existían)."
 
 # 5. Inicializar configuración de Firestore
 echo "🗄️  5/5 Inicializando configuración en Firestore..."
@@ -197,6 +202,104 @@ try:
 except Exception as e:
     print(f"   ⚠️  No se pudo inicializar Firestore: {e}")
 PYEOF
+
+# 6. Configurar alertas de Cloud Monitoring
+echo "🔔 6/6 Configurando alertas de monitoreo..."
+ALERT_EMAIL="jorvanp@gmail.com"
+
+gcloud services enable monitoring.googleapis.com &> /dev/null || true
+
+# Métrica de log para errores del servicio
+gcloud logging metrics create garmin-dashboard-errors \
+  --description="Errores en garmin-dashboard Cloud Run" \
+  --log-filter='resource.type="cloud_run_revision" AND resource.labels.service_name="garmin-dashboard" AND severity>=ERROR' \
+  &> /dev/null || true
+echo "   ✅ Métrica de errores configurada."
+
+# Canal de notificación por email (solo crear si no existe)
+CHANNEL_NAME=$(gcloud alpha monitoring channels list \
+  --project="$PROJECT_ID" \
+  --filter='displayName="Sento Run — Alertas"' \
+  --format='value(name)' 2>/dev/null | head -1)
+if [ -z "$CHANNEL_NAME" ]; then
+  CHANNEL_NAME=$(gcloud alpha monitoring channels create \
+    --project="$PROJECT_ID" \
+    --display-name="Sento Run — Alertas" \
+    --type=email \
+    --channel-labels="email_address=$ALERT_EMAIL" \
+    --format='value(name)' 2>/dev/null || echo "")
+  [ -n "$CHANNEL_NAME" ] && echo "   ✅ Canal de email creado: $ALERT_EMAIL" \
+    || echo "   ⚠️  No se pudo crear canal (verifica permiso roles/monitoring.editor)."
+else
+  echo "   ✅ Canal de email ya existe: $ALERT_EMAIL"
+fi
+
+# Uptime check: alerta si el servicio no responde en /
+UPTIME_EXISTS=$(gcloud monitoring uptime list \
+  --project="$PROJECT_ID" \
+  --filter='displayName="Sento Run — Uptime"' \
+  --format='value(name)' 2>/dev/null | head -1)
+if [ -z "$UPTIME_EXISTS" ] && [ -n "$PRIMARY_URL" ]; then
+  SERVICE_HOST=$(echo "$PRIMARY_URL" | sed 's|https://||')
+  gcloud monitoring uptime create "Sento Run — Uptime" \
+    --project="$PROJECT_ID" \
+    --resource-type=uptime-url \
+    --resource-labels="host=$SERVICE_HOST,project_id=$PROJECT_ID" \
+    --protocol=HTTPS \
+    --path="/" \
+    --period=5 \
+    --timeout=10 \
+    &> /dev/null || true
+  echo "   ✅ Uptime check configurado (cada 5 min → email si cae)."
+else
+  echo "   ✅ Uptime check ya existe."
+fi
+
+# Política de alerta por errores: >5 errores en 5 minutos → email
+if [ -n "$CHANNEL_NAME" ]; then
+  POLICY_EXISTS=$(gcloud alpha monitoring policies list \
+    --project="$PROJECT_ID" \
+    --filter='displayName="Sento Run — Errores Críticos"' \
+    --format='value(name)' 2>/dev/null | head -1)
+  if [ -z "$POLICY_EXISTS" ]; then
+    cat > /tmp/sento_alert_policy.json <<ALERTEOF
+{
+  "displayName": "Sento Run — Errores Críticos",
+  "conditions": [{
+    "displayName": "Más de 5 errores en 5 minutos",
+    "conditionThreshold": {
+      "filter": "metric.type=\"logging.googleapis.com/user/garmin-dashboard-errors\"",
+      "aggregations": [{
+        "alignmentPeriod": "300s",
+        "perSeriesAligner": "ALIGN_SUM",
+        "crossSeriesReducer": "REDUCE_SUM"
+      }],
+      "comparison": "COMPARISON_GT",
+      "thresholdValue": 5,
+      "duration": "0s",
+      "trigger": { "count": 1 }
+    }
+  }],
+  "combiner": "OR",
+  "enabled": true,
+  "notificationChannels": ["$CHANNEL_NAME"],
+  "alertStrategy": { "autoClose": "604800s" },
+  "documentation": {
+    "content": "Sento Run tiene más de 5 errores en los últimos 5 minutos. Revisa los logs en: https://console.cloud.google.com/run/detail/$PRIMARY_REGION/garmin-dashboard/logs?project=$PROJECT_ID",
+    "mimeType": "text/markdown"
+  }
+}
+ALERTEOF
+    gcloud alpha monitoring policies create \
+      --project="$PROJECT_ID" \
+      --policy-from-file=/tmp/sento_alert_policy.json \
+      &> /dev/null || true
+    rm -f /tmp/sento_alert_policy.json
+    echo "   ✅ Política de alertas creada — email a $ALERT_EMAIL si hay >5 errores en 5 min."
+  else
+    echo "   ✅ Política de alertas ya existe."
+  fi
+fi
 
 echo "=========================================================="
 echo "🎉 ¡Despliegue Multi-Región Completado!"

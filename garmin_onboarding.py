@@ -39,9 +39,10 @@ def refresh_done(user_id: str, msg: str = "¡Listo!"):
     _fetch_progress[user_id] = {**_fetch_progress.get(user_id, {}), "pct": 100, "msg": msg}
 
 
-def refresh_error(user_id: str, msg: str):
+def refresh_error(user_id: str, msg: str, garmin_blocked: bool = False):
     _refreshing.discard(user_id)
-    _fetch_progress[user_id] = {**_fetch_progress.get(user_id, {}), "pct": -1, "msg": msg}
+    _fetch_progress[user_id] = {**_fetch_progress.get(user_id, {}), "pct": -1, "msg": msg,
+                                 "garmin_blocked": garmin_blocked}
 
 
 def login_garmin_and_save_tokens(email: str, password: str, user_id: str, gcs) -> tuple:
@@ -76,9 +77,16 @@ def login_garmin_and_save_tokens(email: str, password: str, user_id: str, gcs) -
 
     except GarminConnectAuthenticationError:
         return False, "Credenciales de Garmin incorrectas. Verifica tu email y contraseña."
-    except Exception as e:
+    except BaseException as e:
+        err_str = str(e)
         logger.error(f"Garmin login error for {user_id}: {e}")
-        return False, f"Error al conectar con Garmin: {str(e)}"
+        if "429" in err_str or "rate limit" in err_str.lower() or "ip rate" in err_str.lower():
+            return False, (
+                "Garmin está bloqueando las conexiones desde nuestro servidor en este momento. "
+                "Esto es temporal — intenta de nuevo en unos minutos, o contacta al administrador "
+                "para hacer la conexión manualmente."
+            )
+        return False, f"Error al conectar con Garmin: {err_str}"
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -89,7 +97,7 @@ def get_fetch_progress(user_id: str) -> dict:
 
 def fetch_initial_data_async(user_id: str, gcs, fh_module):
     """
-    Launches a background thread to perform the initial full data fetch (6 months).
+    Launches a background thread to perform the initial full data fetch (MONTHS_TO_FETCH months).
     Runs independently so the HTTP response is returned immediately to the user.
     """
     if is_refreshing(user_id):
@@ -111,7 +119,11 @@ def fetch_initial_data_async(user_id: str, gcs, fh_module):
             refresh_progress(user_id, 5, "Autenticando con Garmin Connect...")
             api = init_api(token_dir=tmp_dir)
             if not api:
-                refresh_error(user_id, "Error: no se pudo autenticar con Garmin.")
+                fh_module.upsert_user(user_id, {'garmin_sync_disabled': True})
+                refresh_error(user_id,
+                    "Garmin no está disponible en este momento. Tu cuenta quedó configurada "
+                    "para continuar sin Garmin — puedes importar tus actividades manualmente.",
+                    garmin_blocked=True)
                 logger.error(f"Background fetch: failed to init Garmin API for {user_id}.")
                 return
 
@@ -119,8 +131,9 @@ def fetch_initial_data_async(user_id: str, gcs, fh_module):
             logger.info(f"Background fetch: starting full data pull for {user_id}...")
 
             # ---- Inline fetch_data_monthly with progress updates ----
+            from export_data import MONTHS_TO_FETCH
             today = today_cdmx()
-            start_month = today.month - 6
+            start_month = today.month - MONTHS_TO_FETCH
             start_year = today.year
             if start_month <= 0:
                 start_month += 12
@@ -129,7 +142,7 @@ def fetch_initial_data_async(user_id: str, gcs, fh_module):
             total_days = (today - start_date).days + 1
 
             export_data = {
-                "metadata": {"period": "Last 6 full months + current month",
+                "metadata": {"period": f"Last {MONTHS_TO_FETCH} full months + current month",
                               "end_date": today.isoformat(), "start_date": start_date.isoformat()},
                 "user_profile": {},
                 "months": {},
@@ -216,7 +229,14 @@ def fetch_initial_data_async(user_id: str, gcs, fh_module):
             refresh_done(user_id, "¡Listo! Redirigiendo al dashboard...")
             logger.info(f"Background fetch: complete for {user_id}.")
         except Exception as e:
-            refresh_error(user_id, f"Error: {str(e)}")
+            try:
+                fh_module.upsert_user(user_id, {'garmin_sync_disabled': True})
+            except Exception:
+                pass
+            refresh_error(user_id,
+                "Garmin no está disponible en este momento. Tu cuenta quedó configurada "
+                "para continuar sin Garmin — puedes importar tus actividades manualmente.",
+                garmin_blocked=True)
             logger.error(f"Background fetch error for {user_id}: {e}")
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)

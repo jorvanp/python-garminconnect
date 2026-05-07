@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import tempfile
+import threading
 import time
 
 from flask import Blueprint, jsonify, request
@@ -23,25 +24,26 @@ DATA_FILE = 'training_data_monthly.json'
 
 @cron_bp.route('/token-warmup')
 def token_warmup():
-    """Refresh oauth2 tokens for all users without fetching any Garmin data.
-    Run at 8am — keeps tokens valid through peak morning usage hours, avoiding
-    simultaneous exchange requests when users log in.
-    """
+    """Refresh oauth2 tokens in background — returns 200 immediately to avoid gunicorn timeout."""
     apikey = request.args.get('apikey', '')
     expected = os.environ.get('CRON_API_KEY')
     if expected and apikey != expected:
         return jsonify({"error": "Unauthorized"}), 401
 
     users = firestore_helper.get_all_active_users()
-    logger.info(f"Token warmup started: {len(users)} users.")
-    results = {"total": len(users), "success": [], "failed": []}
+    logger.info(f"Token warmup triggered: {len(users)} users — running in background.")
+    threading.Thread(target=_run_token_warmup, args=(users,), daemon=True).start()
+    return jsonify({"status": "started", "users": len(users)})
 
+
+def _run_token_warmup(users: list):
     for i, user in enumerate(users):
         uid = user['uid']
+        if user.get('garmin_sync_disabled'):
+            logger.info(f"Token warmup: skipping {uid} — Garmin sync disabled.")
+            continue
         if i > 0:
-            # 2-min gap staggers token expiry — users 1-5 expire at 9:02, 9:04, 9:06...
-            # so even if all log in "at 9am" they don't all need exchange simultaneously
-            time.sleep(120)
+            time.sleep(120)  # stagger expiry: users 1-N expire at +2min, +4min...
         tmp_dir = tempfile.mkdtemp()
         try:
             gcs = GCSHelper(BUCKET_NAME)
@@ -51,48 +53,45 @@ def token_warmup():
             if not api:
                 raise RuntimeError("init_api returned None")
             gcs.upload_directory(tmp_dir, token_prefix)
-            results["success"].append(uid)
             logger.info(f"Token warmup: refreshed token for {uid}.")
         except Exception as e:
             logger.error(f"Token warmup failed for {uid}: {e}")
-            results["failed"].append({"uid": uid, "error": str(e)})
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
-
-    logger.info(f"Token warmup complete: {len(results['success'])} ok, {len(results['failed'])} failed.")
-    return jsonify(results)
+    logger.info("Token warmup complete.")
 
 
 @cron_bp.route('/cron-refresh')
 def cron_refresh():
+    """Triggers daily data refresh in background — returns 200 immediately to avoid gunicorn timeout."""
     apikey = request.args.get('apikey', '')
     expected = os.environ.get('CRON_API_KEY')
     if expected and apikey != expected:
         return jsonify({"error": "Unauthorized"}), 401
 
     users = firestore_helper.get_all_active_users()
-    logger.info(f"Cron refresh started: {len(users)} active users.")
+    logger.info(f"Cron refresh triggered: {len(users)} users — running in background.")
+    threading.Thread(target=_run_cron_refresh, args=(users,), daemon=True).start()
+    return jsonify({"status": "started", "users": len(users)})
 
-    results = {"total": len(users), "success": [], "failed": []}
 
-    # Process users sequentially with delay to avoid Garmin OAuth 429 rate limits
+def _run_cron_refresh(users: list):
+    success, failed = [], []
     for i, user in enumerate(users):
         uid = user['uid']
         if i > 0:
-            time.sleep(20)  # 20s gap between users avoids token-exchange rate limit
+            time.sleep(20)
         if user.get('garmin_sync_disabled'):
             logger.info(f"Cron: skipping {uid} — Garmin sync disabled by admin.")
-            results["success"].append(uid)
+            success.append(uid)
             continue
         try:
             _refresh_user(user)
-            results["success"].append(uid)
+            success.append(uid)
         except Exception as e:
             logger.error(f"Cron: failed for {uid}: {e}")
-            results["failed"].append({"uid": uid, "error": str(e)})
-
-    logger.info(f"Cron refresh complete: {len(results['success'])} ok, {len(results['failed'])} failed.")
-    return jsonify(results)
+            failed.append({"uid": uid, "error": str(e)})
+    logger.info(f"Cron refresh complete: {len(success)} ok, {len(failed)} failed.")
 
 
 def _refresh_user(user: dict):
