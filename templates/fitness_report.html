@@ -356,7 +356,7 @@
       {% if plan_current_week_workouts %}
       <div style="background:rgba(0,0,0,0.35);border-top:1px solid rgba(255,255,255,0.1);padding:14px 18px 16px;">
         <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:10px;">
-          Tu plan de esta semana
+          {% if plan_not_started %}Vista previa del plan{% else %}Tu plan de esta semana{% endif %}
           {% if plan_current_week_num and plan_total_weeks %}
           <span style="color:rgba(255,255,255,0.35);font-weight:500;">&nbsp;(Semana {{ plan_current_week_num }}/{{ plan_total_weeks }})</span>
           {% endif %}

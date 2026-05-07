@@ -378,6 +378,8 @@ def _add_race_hero(dashboard_data: dict, user_doc: dict, user_tz: str | None) ->
     plan_current_week_workouts = None
     plan_current_week_num = None
     plan_total_weeks = None
+    plan_not_started = False
+    plan_start_str = ''
     plan_schedule = (user_doc or {}).get('training_plan_schedule')
     if plan_schedule:
         try:
@@ -388,13 +390,16 @@ def _add_race_hero(dashboard_data: dict, user_doc: dict, user_tz: str | None) ->
                 today = _today_tz(user_tz)
                 plan_start = _date_cls.fromisoformat(plan_start_str)
                 delta = (today - plan_start).days
+                plan_not_started = delta < 0
                 if delta >= 0:
                     w_num = min(delta // 7 + 1, total_weeks or 99)
-                    plan_current_week_num = w_num
-                    for week in plan_schedule.get('weeks', []):
-                        if week.get('week_number') == w_num:
-                            plan_current_week_workouts = week.get('workouts', [])
-                            break
+                else:
+                    w_num = 1  # Plan not started yet — preview week 1
+                plan_current_week_num = w_num
+                for week in plan_schedule.get('weeks', []):
+                    if week.get('week_number') == w_num:
+                        plan_current_week_workouts = week.get('workouts', [])
+                        break
         except (ValueError, TypeError):
             pass
     # --- Match actual activities to each day of the current week ---
@@ -492,6 +497,7 @@ def _add_race_hero(dashboard_data: dict, user_doc: dict, user_tz: str | None) ->
     dashboard_data['plan_current_week_workouts'] = plan_current_week_workouts
     dashboard_data['plan_current_week_num'] = plan_current_week_num
     dashboard_data['plan_total_weeks'] = plan_total_weeks
+    dashboard_data['plan_not_started'] = plan_not_started
     dashboard_data['has_plan_schedule'] = bool(plan_schedule)
     dashboard_data['week_has_actuals'] = week_has_actuals
 

@@ -6,7 +6,7 @@ Contexto del proyecto para Claude y nuevos colaboradores.
 
 ## Qué hace la app
 
-App web de coaching de fitness personalizado. Los usuarios conectan su cuenta Garmin, la app descarga su historial de actividades y métricas diarias, y el asistente IA **Sento** (basado en Gemini) genera prescripciones de entrenamiento diarias, responde preguntas de fitness, define objetivos de carrera y genera planes de entrenamiento semana a semana.
+App web de coaching de fitness personalizado con usuario, contraseña y cuenta de google. El usuario puede conectar su cuenta Garmin, la app descarga su historial de actividades y métricas diarias, y el asistente IA **Sento** (basado en Gemini) genera prescripciones de entrenamiento diarias, responde preguntas de fitness, define objetivos de carrera y genera planes de entrenamiento semana a semana.
 
 **Usuarios:** ~5 usuarios activos. App en producción en GCP.
 
@@ -58,8 +58,6 @@ deploy.sh                   # Deploy completo a Cloud Run (incluye scheduler y s
 ---
 
 ## Flujo de login y refresh
-
-Cada login dispara una recarga de datos de Garmin:
 
 1. `auth.py` — setea `session['needs_login_refresh'] = True` en cada login OAuth
 2. `routes/dashboard.py index()` — consume el flag con `session.pop('needs_login_refresh', False)`

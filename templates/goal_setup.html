@@ -279,9 +279,34 @@
     return wrapper;
   }
 
-  function showGoalCard(goalDraft) {
+  function showGoalCard(goalDraft, raceCandidates) {
     const card = document.createElement('div');
     card.className = 'goal-card';
+
+    // Build inline race picker HTML (rendered inside the card)
+    let racePickerHtml = '';
+    if (raceCandidates && raceCandidates.length > 0) {
+      const opts = raceCandidates.map(r => `
+        <div class="race-opt" id="raceopt-${r.id}" onclick="selectRaceInCard('${r.id}')"
+          style="display:flex;align-items:center;gap:10px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;">
+          <div class="race-radio" id="radio-${r.id}" style="width:18px;height:18px;border:2px solid #d1d5db;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(r.name || r.race_type)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:1px;">📅 ${r.event_date} · ${r.race_type} · ${r.participant_count} atleta${r.participant_count !== 1 ? 's' : ''}</div>
+          </div>
+        </div>`).join('');
+      racePickerHtml = `
+        <div style="border-top:1px solid #e5e7eb;margin-top:14px;padding-top:14px;">
+          <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">🏁 ¿Es esta tu carrera?</div>
+          ${opts}
+          <div class="race-opt" id="raceopt-new" onclick="selectRaceInCard('')"
+            style="display:flex;align-items:center;gap:10px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;cursor:pointer;transition:all 0.15s;">
+            <div class="race-radio" id="radio-new" style="width:18px;height:18px;border:2px solid #d1d5db;border-radius:50%;flex-shrink:0;transition:all 0.15s;"></div>
+            <div style="font-size:13px;font-weight:600;color:#6b7280;">No, es una carrera diferente</div>
+          </div>
+        </div>`;
+    }
+
     card.innerHTML = `
       <div class="goal-card-header">✅ Objetivo estructurado — revisa y confirma</div>
       <div class="goal-fields">
@@ -350,6 +375,7 @@
           <input type="date" id="gf_plan_start" value="${esc(goalDraft.plan_start_date || '')}">
         </div>
       </div>
+      ${racePickerHtml}
       {% if can_regenerate %}
       <button class="btn-save-goal" id="saveGoalBtn" onclick="saveGoal()">🚀 Guardar y generar mi plan</button>
       {% else %}
@@ -404,15 +430,32 @@
     scrollBottom();
   }
 
+  function selectRaceInCard(raceId) {
+    pendingRaceId = raceId;
+    // Update radio visual for all options in the card
+    document.querySelectorAll('.race-opt').forEach(el => {
+      el.style.borderColor = '#e5e7eb';
+      el.style.background = '#f9fafb';
+    });
+    document.querySelectorAll('.race-radio').forEach(el => {
+      el.style.borderColor = '#d1d5db';
+      el.innerHTML = '';
+    });
+    const selectedOpt = document.getElementById(raceId ? `raceopt-${raceId}` : 'raceopt-new');
+    const selectedRadio = document.getElementById(raceId ? `radio-${raceId}` : 'radio-new');
+    if (selectedOpt) { selectedOpt.style.borderColor = '#16a34a'; selectedOpt.style.background = '#f0fdf4'; }
+    if (selectedRadio) { selectedRadio.style.borderColor = '#16a34a'; selectedRadio.innerHTML = '<div style="width:10px;height:10px;background:#16a34a;border-radius:50%;"></div>'; }
+  }
+
   function selectRace(raceId, btn) {
-    pendingRaceId = raceId;  // '' means "create new"
-    // Visual feedback: replace picker with a compact confirmation
+    // Legacy: called from standalone inline-race-picker (fallback, kept for safety)
+    pendingRaceId = raceId;
     const picker = btn.closest('.inline-race-picker');
     if (picker) {
       const label = raceId
-        ? '✅ Carrera seleccionada. Confirma tu objetivo y genera el plan.'
-        : '✅ Anotado — se creará una nueva entrada para tu carrera.';
-      picker.innerHTML = `<div style="font-size:12px;color:#16a34a;font-weight:600;margin:4px 0 4px 0;padding-left:2px;">${label}</div>`;
+        ? '✅ Carrera seleccionada.'
+        : '✅ Se creará una nueva entrada para tu carrera.';
+      picker.innerHTML = `<div style="font-size:12px;color:#16a34a;font-weight:600;margin:4px 0;">${label}</div>`;
     }
   }
 
@@ -445,11 +488,7 @@
         addMessage('assistant', data.reply || '');
         history.push({ role: 'model', content: data.reply || '' });
         if (data.goal_draft) {
-          showGoalCard(data.goal_draft);
-        }
-        // Show inline race picker when candidates arrive with the goal draft
-        if (data.race_candidates && data.race_candidates.length > 0 && pendingRaceId === null) {
-          showInlineRacePicker(data.race_candidates);
+          showGoalCard(data.goal_draft, data.race_candidates || []);
         }
       }
     } catch (err) {
@@ -510,23 +549,12 @@
         return;
       }
 
-      // Paso 1b: vincular a carrera
+      // Paso 1b: vincular a carrera (race picker is now embedded in the card — no modal needed)
       if (goal.event_date) {
-        if (pendingRaceId !== null) {
-          // User already answered inline in the chat — use that selection directly
-          const payload = pendingRaceId
-            ? { race_id: pendingRaceId, create_new: false }
-            : { create_new: true };
-          fetch('/goal/join-race', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }).catch(()=>{});
-        } else if (data.race_candidates && data.race_candidates.length > 0) {
-          // Fallback: candidates arrived at save time (e.g. page was reloaded), show modal
-          btn.textContent = '✅ Objetivo guardado';
-          showRaceModal(data.race_candidates);
-          return; // proceedAfterGoal() continuará desde el modal
-        } else {
-          // No candidates — create a new race entry
-          fetch('/goal/join-race', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({create_new: true}) }).catch(()=>{});
-        }
+        const payload = (pendingRaceId !== null && pendingRaceId !== '')
+          ? { race_id: pendingRaceId, create_new: false }
+          : { create_new: true };
+        fetch('/goal/join-race', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }).catch(()=>{});
       }
       proceedAfterGoal(btn);
     } catch (err) {
