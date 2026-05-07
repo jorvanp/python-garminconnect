@@ -130,10 +130,23 @@ def view_user_plan(uid: str):
                 current_week = min(delta // 7 + 1, total_weeks or 99)
         except (ValueError, TypeError):
             pass
+    from routes.dashboard import _get_regen_status
+    can_regenerate, next_regen_date = _get_regen_status(user, None)
+    goal_pace = (goal or {}).get('target_pace_str', '')
+    plan_stale = bool(
+        goal and plan and (
+            plan.get('event_date', '') != (goal or {}).get('event_date', '') or
+            plan.get('goal_pace', '') != goal_pace
+        )
+    )
     return render_template('training_plan.html',
                            plan=plan, goal=goal, user_name=user_name,
                            current_week=current_week, week_dates=week_dates,
                            today_str=today.isoformat(), generating=False,
+                           can_regenerate=can_regenerate,
+                           next_regen_date=next_regen_date,
+                           plan_stale=plan_stale,
+                           is_premium=bool(user.get('is_premium')),
                            _admin_viewing=True,
                            _admin_user_email=user.get('email', uid),
                            _viewed_uid=uid)

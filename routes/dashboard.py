@@ -379,7 +379,9 @@ def _add_race_hero(dashboard_data: dict, user_doc: dict, user_tz: str | None) ->
     plan_current_week_num = None
     plan_total_weeks = None
     plan_not_started = False
+    plan_week_range = ''
     plan_start_str = ''
+    _MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
     plan_schedule = (user_doc or {}).get('training_plan_schedule')
     if plan_schedule:
         try:
@@ -396,6 +398,12 @@ def _add_race_hero(dashboard_data: dict, user_doc: dict, user_tz: str | None) ->
                 else:
                     w_num = 1  # Plan not started yet — preview week 1
                 plan_current_week_num = w_num
+                week_start = plan_start + _td(weeks=w_num - 1)
+                week_end = week_start + _td(days=6)
+                plan_week_range = (
+                    f"{week_start.day} {_MONTHS_ES[week_start.month-1]}"
+                    f" – {week_end.day} {_MONTHS_ES[week_end.month-1]}"
+                )
                 for week in plan_schedule.get('weeks', []):
                     if week.get('week_number') == w_num:
                         plan_current_week_workouts = week.get('workouts', [])
@@ -498,6 +506,7 @@ def _add_race_hero(dashboard_data: dict, user_doc: dict, user_tz: str | None) ->
     dashboard_data['plan_current_week_num'] = plan_current_week_num
     dashboard_data['plan_total_weeks'] = plan_total_weeks
     dashboard_data['plan_not_started'] = plan_not_started
+    dashboard_data['plan_week_range'] = plan_week_range
     dashboard_data['has_plan_schedule'] = bool(plan_schedule)
     dashboard_data['week_has_actuals'] = week_has_actuals
 

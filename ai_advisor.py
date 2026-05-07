@@ -316,7 +316,7 @@ def _format_profile_for_ai(profile: dict | None) -> str:
         bd = profile.get('birth_date', '')
         if bd:
             birth = _date.fromisoformat(bd)
-            age = (_date.today() - birth).days // 365
+            age = (today_tz(None) - birth).days // 365
             lines.append(f"- Edad: {age} años (nacido {bd})")
     except Exception:
         pass
