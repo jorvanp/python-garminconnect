@@ -20,7 +20,7 @@
   .welcome h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
   .welcome p { font-size: 14px; color: #6b7280; line-height: 1.6; }
 
-  /* Progress bar */
+  /* Progress bar (dynamic) */
   .progress-bar { display: flex; gap: 6px; margin-bottom: 28px; }
   .progress-step { flex: 1; height: 5px; border-radius: 4px; background: #e5e7eb; transition: background 0.3s; }
   .progress-step.done { background: #22c55e; }
@@ -49,6 +49,28 @@
   .sex-btn { flex: 1; padding: 10px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; color: #374151; }
   .sex-btn:hover { border-color: #f97316; color: #f97316; }
   .sex-btn.selected { border-color: #f97316; background: #fff7ed; color: #ea580c; }
+
+  /* Discipline chips */
+  .disc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 480px) { .disc-grid { grid-template-columns: 1fr; } }
+  .disc-chip { display: flex; align-items: center; gap: 10px; padding: 13px 14px; border: 1.5px solid #e5e7eb; border-radius: 12px; background: white; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .disc-chip:hover { border-color: #f97316; }
+  .disc-chip.selected { border-color: #f97316; background: #fff7ed; }
+  .disc-chip .disc-emoji { font-size: 22px; line-height: 1; }
+  .disc-chip .disc-name { font-size: 14px; font-weight: 700; color: #374151; }
+  .disc-chip .disc-check { margin-left: auto; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 13px; color: white; transition: all 0.15s; }
+  .disc-chip.selected .disc-check { background: #f97316; border-color: #f97316; }
+  .disc-chip.selected .disc-name { color: #ea580c; }
+
+  /* Sub-card for each activity block */
+  .act-block { border: 1.5px solid #f1f5f9; border-radius: 12px; padding: 16px; margin-bottom: 14px; background: #fafbfc; }
+  .act-block-title { font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
+
+  /* Where-do-you-ride toggles */
+  .toggle-row { display: flex; gap: 8px; }
+  .toggle-btn { flex: 1; padding: 9px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; color: #374151; }
+  .toggle-btn:hover { border-color: #f97316; }
+  .toggle-btn.selected { border-color: #f97316; background: #fff7ed; color: #ea580c; }
 
   /* Optional badge */
   .optional { font-size: 10px; background: #f3f4f6; color: #9ca3af; border-radius: 6px; padding: 1px 6px; margin-left: 6px; font-weight: 500; text-transform: none; letter-spacing: 0; }
@@ -98,17 +120,12 @@
     <p>{{ _('Cuéntanos un poco sobre ti para que Sento pueda darte recomendaciones realmente personalizadas.') }}</p>
   </div>
 
-  <!-- Progress -->
-  <div class="progress-bar">
-    <div class="progress-step active" id="pb1"></div>
-    <div class="progress-step" id="pb2"></div>
-    <div class="progress-step" id="pb3"></div>
-    <div class="progress-step" id="pb4"></div>
-  </div>
-  <div class="step-counter" id="stepCounter">Paso 1 de 4</div>
+  <!-- Progress (built dynamically by JS) -->
+  <div class="progress-bar" id="progressBar"></div>
+  <div class="step-counter" id="stepCounter">Paso 1</div>
 
-  <!-- STEP 1: Datos básicos -->
-  <div class="step active" id="step1">
+  <!-- STEP: basics -->
+  <div class="step active" data-step="basics">
     <div class="step-card">
       <div class="step-title">Datos básicos</div>
       <div class="step-sub">Para calcular tu edad y personalizar las zonas de entrenamiento.</div>
@@ -128,16 +145,48 @@
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn-next" onclick="goNext(1)">Siguiente →</button>
+      <button class="btn-next" onclick="goNext()">Siguiente →</button>
     </div>
     <span class="btn-skip" onclick="skipAll()">Omitir por ahora</span>
   </div>
 
-  <!-- STEP 2: Historial de entrenamiento -->
-  <div class="step" id="step2">
+  <!-- STEP: disciplines -->
+  <div class="step" data-step="disciplines">
     <div class="step-card">
-      <div class="step-title">Tu entrenamiento habitual</div>
-      <div class="step-sub">Cuéntanos cómo entrenas actualmente.</div>
+      <div class="step-title">¿Qué actividades practicas?</div>
+      <div class="step-sub">Selecciona todas las que hagas. Según lo que elijas, te preguntaremos detalles.</div>
+      <div class="disc-grid">
+        <div class="disc-chip" data-disc="run" onclick="toggleDisc(this)">
+          <span class="disc-emoji">🏃</span><span class="disc-name">Correr</span><span class="disc-check">✓</span>
+        </div>
+        <div class="disc-chip" data-disc="bike" onclick="toggleDisc(this)">
+          <span class="disc-emoji">🚴</span><span class="disc-name">Ciclismo</span><span class="disc-check">✓</span>
+        </div>
+        <div class="disc-chip" data-disc="strength" onclick="toggleDisc(this)">
+          <span class="disc-emoji">💪</span><span class="disc-name">Fuerza / Gym</span><span class="disc-check">✓</span>
+        </div>
+        <div class="disc-chip" data-disc="yoga" onclick="toggleDisc(this)">
+          <span class="disc-emoji">🧘</span><span class="disc-name">Yoga / Movilidad</span><span class="disc-check">✓</span>
+        </div>
+        <div class="disc-chip" data-disc="swim" onclick="toggleDisc(this)">
+          <span class="disc-emoji">🏊</span><span class="disc-name">Natación</span><span class="disc-check">✓</span>
+        </div>
+        <div class="disc-chip" data-disc="other" onclick="toggleDisc(this)">
+          <span class="disc-emoji">➕</span><span class="disc-name">Otra</span><span class="disc-check">✓</span>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack()">← Atrás</button>
+      <button class="btn-next" onclick="goNext()">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- STEP: run details -->
+  <div class="step" data-step="run">
+    <div class="step-card">
+      <div class="step-title">🏃 Correr — tu volumen habitual</div>
+      <div class="step-sub">Cuéntanos cómo corres actualmente.</div>
 
       <div class="field-row">
         <div class="field">
@@ -149,7 +198,6 @@
           <input type="number" id="weekly_km" min="0" max="300" step="0.5" placeholder="Ej: 35">
         </div>
       </div>
-
       <div class="field">
         <label>Distancia más larga que has corrido (km) <span class="optional">opcional</span></label>
         <input type="number" id="longest_run_km" min="0" max="250" step="0.1" placeholder="Ej: 21.1">
@@ -167,16 +215,103 @@
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn-back" onclick="goBack(2)">← Atrás</button>
-      <button class="btn-next" onclick="goNext(2)">Siguiente →</button>
+      <button class="btn-back" onclick="goBack()">← Atrás</button>
+      <button class="btn-next" onclick="goNext()">Siguiente →</button>
     </div>
   </div>
 
-  <!-- STEP 3: Tiempos de referencia -->
-  <div class="step" id="step3">
+  <!-- STEP: bike details -->
+  <div class="step" data-step="bike">
+    <div class="step-card">
+      <div class="step-title">🚴 Ciclismo — tu volumen habitual</div>
+      <div class="step-sub">Cuéntanos cómo ruedas actualmente.</div>
+
+      <div class="field">
+        <label>¿Dónde ruedas normalmente?</label>
+        <div class="toggle-row">
+          <button type="button" class="toggle-btn" data-ride="outdoor" onclick="toggleRide(this)">🌤️ Exterior / ruta</button>
+          <button type="button" class="toggle-btn" data-ride="indoor" onclick="toggleRide(this)">🏠 Rodillo / indoor</button>
+        </div>
+        <div class="hint">Puedes elegir ambas.</div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Días en bici / semana</label>
+          <input type="number" id="bike_weekly_days" min="0" max="7" placeholder="Ej: 3">
+        </div>
+        <div class="field">
+          <label>Km habituales / semana</label>
+          <input type="number" id="bike_weekly_km" min="0" max="1000" step="1" placeholder="Ej: 120">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Salida más larga (km) <span class="optional">opcional</span></label>
+          <input type="number" id="bike_longest_km" min="0" max="600" step="1" placeholder="Ej: 90">
+        </div>
+        <div class="field">
+          <label>FTP en vatios <span class="optional">opcional</span></label>
+          <input type="number" id="bike_ftp" min="0" max="600" placeholder="Ej: 240">
+          <div class="hint">Si lo conoces de tu potenciómetro.</div>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack()">← Atrás</button>
+      <button class="btn-next" onclick="goNext()">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- STEP: cross-training details (strength/yoga/swim/other) -->
+  <div class="step" data-step="cross">
+    <div class="step-card">
+      <div class="step-title">Otras actividades</div>
+      <div class="step-sub">¿Con qué frecuencia las practicas por semana?</div>
+
+      <div class="act-block" data-actblock="strength" style="display:none;">
+        <div class="act-block-title">💪 Fuerza / Gym</div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Sesiones / semana</label>
+          <input type="number" id="strength_days" min="0" max="7" placeholder="Ej: 2">
+        </div>
+      </div>
+      <div class="act-block" data-actblock="yoga" style="display:none;">
+        <div class="act-block-title">🧘 Yoga / Movilidad</div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Sesiones / semana</label>
+          <input type="number" id="yoga_days" min="0" max="7" placeholder="Ej: 1">
+        </div>
+      </div>
+      <div class="act-block" data-actblock="swim" style="display:none;">
+        <div class="act-block-title">🏊 Natación</div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Sesiones / semana</label>
+          <input type="number" id="swim_days" min="0" max="7" placeholder="Ej: 2">
+        </div>
+      </div>
+      <div class="act-block" data-actblock="other" style="display:none;">
+        <div class="act-block-title">➕ Otra actividad</div>
+        <div class="field">
+          <label>¿Cuál?</label>
+          <input type="text" id="other_activity" maxlength="60" placeholder="Ej: escalada, remo, crossfit…">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Sesiones / semana</label>
+          <input type="number" id="other_days" min="0" max="7" placeholder="Ej: 2">
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack()">← Atrás</button>
+      <button class="btn-next" onclick="goNext()">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- STEP: reference times (running) -->
+  <div class="step" data-step="ref">
     <div class="step-card">
       <div class="step-title">Tiempos de referencia <span class="optional" style="font-size:12px;">opcional</span></div>
-      <div class="step-sub">Si tienes tiempos en alguna distancia, nos ayudan a calibrar tu plan. Deja en blanco lo que no recuerdes.</div>
+      <div class="step-sub">Si tienes tiempos en alguna distancia corriendo, nos ayudan a calibrar tu plan. Deja en blanco lo que no recuerdes.</div>
 
       <div class="field-row">
         <div class="field">
@@ -200,19 +335,19 @@
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn-back" onclick="goBack(3)">← Atrás</button>
-      <button class="btn-next" onclick="goNext(3)">Siguiente →</button>
+      <button class="btn-back" onclick="goBack()">← Atrás</button>
+      <button class="btn-next" onclick="goNext()">Siguiente →</button>
     </div>
   </div>
 
-  <!-- STEP 4: Preferencias -->
-  <div class="step" id="step4">
+  <!-- STEP: preferences -->
+  <div class="step" data-step="prefs">
     <div class="step-card">
       <div class="step-title">Preferencias de entrenamiento</div>
       <div class="step-sub">Esto ayuda a Sento a estructurar tu plan según tu semana.</div>
 
       <div class="field">
-        <label>Día preferido para tu carrera larga</label>
+        <label>Día preferido para tu sesión larga</label>
         <select id="long_run_day">
           <option value="">Sin preferencia</option>
           <option value="lunes">Lunes</option>
@@ -246,7 +381,7 @@
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn-back" onclick="goBack(4)">← Atrás</button>
+      <button class="btn-back" onclick="goBack()">← Atrás</button>
       <button class="btn-next" id="saveBtn" onclick="save()">✅ Guardar y continuar</button>
     </div>
   </div>
@@ -260,20 +395,72 @@
 </div>
 
 <script>
-  let currentStep = 1;
   let selectedSex = '';
   let planStartPref = 'now';
+  const disciplines = new Set();      // run, bike, strength, yoga, swim, other
+  const rideWhere = new Set();        // outdoor, indoor
+
+  // Ordered catalog of possible steps and when each applies.
+  const STEP_CATALOG = [
+    { id: 'basics',      applies: () => true },
+    { id: 'disciplines', applies: () => true },
+    { id: 'run',         applies: () => disciplines.has('run') },
+    { id: 'bike',        applies: () => disciplines.has('bike') },
+    { id: 'cross',       applies: () => ['strength','yoga','swim','other'].some(d => disciplines.has(d)) },
+    { id: 'ref',         applies: () => disciplines.has('run') },
+    { id: 'prefs',       applies: () => true },
+  ];
+
+  let activeSteps = ['basics', 'disciplines', 'prefs']; // recomputed after disciplines chosen
+  let idx = 0;
 
   const today = new Date().toISOString().split('T')[0];
   document.querySelectorAll('input[type=date]').forEach(el => {
     if (!el.value && el.id !== 'plan_start_date') el.max = today;
   });
 
+  function recomputeSteps() {
+    activeSteps = STEP_CATALOG.filter(s => s.applies()).map(s => s.id);
+  }
+
+  function stepEl(id) { return document.querySelector(`.step[data-step="${id}"]`); }
+
+  function renderProgress() {
+    const bar = document.getElementById('progressBar');
+    bar.innerHTML = '';
+    activeSteps.forEach((_, i) => {
+      const d = document.createElement('div');
+      d.className = 'progress-step' + (i < idx ? ' done' : i === idx ? ' active' : '');
+      bar.appendChild(d);
+    });
+    document.getElementById('stepCounter').textContent = `Paso ${idx + 1} de ${activeSteps.length}`;
+  }
+
+  function showStep(i) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    stepEl(activeSteps[i]).classList.add('active');
+    idx = i;
+    renderProgress();
+    window.scrollTo(0, 0);
+  }
+
   function selectSex(btn) {
     document.querySelectorAll('.sex-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     selectedSex = btn.dataset.val;
     document.getElementById('sex').value = selectedSex;
+  }
+
+  function toggleDisc(el) {
+    const d = el.dataset.disc;
+    if (disciplines.has(d)) { disciplines.delete(d); el.classList.remove('selected'); }
+    else { disciplines.add(d); el.classList.add('selected'); }
+  }
+
+  function toggleRide(btn) {
+    const r = btn.dataset.ride;
+    if (rideWhere.has(r)) { rideWhere.delete(r); btn.classList.remove('selected'); }
+    else { rideWhere.add(r); btn.classList.add('selected'); }
   }
 
   function setPlanStart(val) {
@@ -283,42 +470,47 @@
     document.getElementById('plan_start_date_wrap').style.display = val === 'future' ? 'block' : 'none';
   }
 
-  function updateProgress(step) {
-    for (let i = 1; i <= 4; i++) {
-      const el = document.getElementById('pb' + i);
-      el.className = 'progress-step' + (i < step ? ' done' : i === step ? ' active' : '');
-    }
-    document.getElementById('stepCounter').textContent = `Paso ${step} de 4`;
+  // Reveal only the activity blocks that were selected on the cross step.
+  function syncCrossBlocks() {
+    ['strength','yoga','swim','other'].forEach(d => {
+      const blk = document.querySelector(`.act-block[data-actblock="${d}"]`);
+      if (blk) blk.style.display = disciplines.has(d) ? 'block' : 'none';
+    });
   }
 
-  function goNext(from) {
-    if (from === 1) {
-      if (!document.getElementById('birth_date').value) {
-        alert('Por favor ingresa tu fecha de nacimiento.'); return;
-      }
-      if (!selectedSex) {
-        alert('Por favor selecciona tu sexo.'); return;
-      }
+  function validateStep(id) {
+    if (id === 'basics') {
+      if (!document.getElementById('birth_date').value) { alert('Por favor ingresa tu fecha de nacimiento.'); return false; }
+      if (!selectedSex) { alert('Por favor selecciona tu sexo.'); return false; }
     }
-    if (from === 2) {
+    if (id === 'disciplines') {
+      if (disciplines.size === 0) { alert('Selecciona al menos una actividad.'); return false; }
+    }
+    if (id === 'run') {
       const days = document.getElementById('weekly_days').value;
       const km = document.getElementById('weekly_km').value;
-      if (!days || !km) { alert('Por favor ingresa los días y km semanales.'); return; }
+      if (!days || !km) { alert('Por favor ingresa los días y km semanales que corres.'); return false; }
     }
-    document.getElementById('step' + from).classList.remove('active');
-    currentStep = from + 1;
-    document.getElementById('step' + currentStep).classList.add('active');
-    updateProgress(currentStep);
-    window.scrollTo(0, 0);
+    if (id === 'bike') {
+      if (rideWhere.size === 0) { alert('Indica si ruedas en exterior, rodillo, o ambos.'); return false; }
+    }
+    return true;
   }
 
-  function goBack(from) {
-    document.getElementById('step' + from).classList.remove('active');
-    currentStep = from - 1;
-    document.getElementById('step' + currentStep).classList.add('active');
-    updateProgress(currentStep);
-    window.scrollTo(0, 0);
+  function goNext() {
+    const current = activeSteps[idx];
+    if (!validateStep(current)) return;
+    if (current === 'disciplines') { recomputeSteps(); syncCrossBlocks(); }
+    if (idx < activeSteps.length - 1) showStep(idx + 1);
   }
+
+  function goBack() {
+    if (idx > 0) showStep(idx - 1);
+  }
+
+  function num(id) { return parseFloat(document.getElementById(id).value) || 0; }
+  function intv(id) { return parseInt(document.getElementById(id).value) || 0; }
+  function val(id) { const e = document.getElementById(id); return e ? e.value.trim() : ''; }
 
   async function save() {
     const btn = document.getElementById('saveBtn');
@@ -328,15 +520,31 @@
     const payload = {
       birth_date:            document.getElementById('birth_date').value,
       sex:                   selectedSex,
-      weekly_days:           parseInt(document.getElementById('weekly_days').value) || 0,
-      weekly_km:             parseFloat(document.getElementById('weekly_km').value) || 0,
-      longest_run_km:        parseFloat(document.getElementById('longest_run_km').value) || 0,
-      longest_run_time:      document.getElementById('longest_run_time').value.trim(),
-      longest_run_date:      document.getElementById('longest_run_date').value,
-      ref_5k:                document.getElementById('ref_5k').value.trim(),
-      ref_10k:               document.getElementById('ref_10k').value.trim(),
-      ref_21k:               document.getElementById('ref_21k').value.trim(),
-      ref_42k:               document.getElementById('ref_42k').value.trim(),
+      disciplines:           Array.from(disciplines),
+      // running
+      weekly_days:           intv('weekly_days'),
+      weekly_km:             num('weekly_km'),
+      longest_run_km:        num('longest_run_km'),
+      longest_run_time:      val('longest_run_time'),
+      longest_run_date:      val('longest_run_date'),
+      ref_5k:                val('ref_5k'),
+      ref_10k:               val('ref_10k'),
+      ref_21k:               val('ref_21k'),
+      ref_42k:               val('ref_42k'),
+      // cycling
+      bike_outdoor:          rideWhere.has('outdoor'),
+      bike_indoor:           rideWhere.has('indoor'),
+      bike_weekly_days:      intv('bike_weekly_days'),
+      bike_weekly_km:        num('bike_weekly_km'),
+      bike_longest_km:       num('bike_longest_km'),
+      bike_ftp:              intv('bike_ftp'),
+      // cross-training
+      strength_days:         intv('strength_days'),
+      yoga_days:             intv('yoga_days'),
+      swim_days:             intv('swim_days'),
+      other_activity:        val('other_activity'),
+      other_days:            intv('other_days'),
+      // preferences
       long_run_day:          document.getElementById('long_run_day').value,
       plan_start_preference: planStartPref,
       plan_start_date:       planStartPref === 'future' ? document.getElementById('plan_start_date').value : '',
@@ -350,7 +558,7 @@
       });
       const data = await res.json();
       if (res.ok) {
-        document.getElementById('step4').classList.remove('active');
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
         document.getElementById('successScreen').style.display = 'block';
         document.getElementById('stepCounter').style.display = 'none';
         document.querySelector('.progress-bar').style.display = 'none';
@@ -369,6 +577,10 @@
     await fetch('/onboarding/profile/skip', { method: 'POST' }).catch(() => {});
     window.location.href = '/';
   }
+
+  // init
+  recomputeSteps();
+  renderProgress();
 </script>
 </body>
 </html>

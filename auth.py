@@ -120,3 +120,38 @@ def callback():
 def logout():
     session.clear()
     return redirect('/')
+
+
+@auth_bp.route('/dev-login')
+def dev_login():
+    """Local-only login bypass. Skips Google OAuth and logs in as an existing
+    Firestore user (by email). Active ONLY when LOCAL_DEV=1, so it is inert in
+    production. Set DEV_LOGIN_EMAIL to choose the user (defaults to the admin)."""
+    if os.environ.get('LOCAL_DEV') != '1':
+        return redirect(url_for('auth.login'))
+
+    target_email = os.environ.get('DEV_LOGIN_EMAIL') or next(iter(ADMIN_EMAILS))
+    match = next((u for u in firestore_helper.get_all_users()
+                  if u.get('email', '').lower() == target_email.lower()), None)
+    if not match:
+        return (f"dev-login: no existe usuario con email {target_email} en Firestore. "
+                f"Define DEV_LOGIN_EMAIL con un email que sí exista."), 404
+
+    uid = match['uid']
+    firestore_helper.upsert_user(uid, {'last_login': datetime.now(timezone.utc).isoformat()})
+
+    session.permanent = True
+    session['user_id'] = uid
+    session['email'] = match.get('email', '')
+    session['display_name'] = match.get('display_name', match.get('email', 'Atleta'))
+    session['picture_url'] = match.get('picture_url', '')
+    session['is_admin'] = match.get('email', '') in ADMIN_EMAILS
+    session['garmin_connected'] = match.get('garmin_connected', False)
+    session['timezone'] = match.get('timezone', 'America/Mexico_City')
+    session['lang'] = match.get('lang', 'es')
+    session['needs_login_refresh'] = True
+    logger.warning(f"DEV LOGIN (LOCAL_DEV) as {session['email']} / {uid}")
+
+    if not session['garmin_connected']:
+        return redirect(url_for('onboarding.warning'))
+    return redirect(url_for('dashboard.index'))

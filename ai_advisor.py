@@ -168,21 +168,31 @@ def generate_daily_recommendation(dashboard_data, user_name="Atleta", training_g
         activity_lines = []
         if acts_6w:
             for act in acts_6w:
+                type_key = act.get('activityType', {}).get('typeKey', '')
+                is_bike = any(k in type_key for k in ('cycling', 'biking', 'bike'))
                 name = act.get('activityName', act.get('activityType', {}).get('typeKey', 'Actividad'))
                 dist = round(act.get('distance', 0) / 1000, 1) if act.get('distance') else '—'
                 speed = act.get('averageSpeed', 0)
-                pace_s = f"{int(1000/speed//60)}:{int(1000/speed%60):02d} /km" if speed and speed > 0 else '—'
                 hr = act.get('averageHR', '')
                 hr_str = f", FC {hr} bpm" if hr else ''
                 load = act.get('activityTrainingLoad')
                 load_str = f", carga {round(load)}" if load else ''
-                stride_cm = act.get('avgStrideLength')
-                stride_str = f", zancada {round(stride_cm)} cm" if stride_cm and 60 < stride_cm < 230 else ''
-                balance = act.get('avgGroundContactBalance')
-                bal_str = (f", pisada {round(balance,1)}%izq/{round(100-balance,1)}%der"
-                           if balance and 40 < balance < 60 else '')
                 d_s = act.get('startTimeLocal', '')[:10]
-                activity_lines.append(f"  • {d_s} — {name}: {dist} km @ {pace_s}{hr_str}{load_str}{stride_str}{bal_str}")
+                if is_bike:
+                    # Cycling: show speed (km/h) + power, not running pace
+                    spd_str = f"{round(speed*3.6,1)} km/h" if speed and speed > 0 else '—'
+                    pwr = act.get('avgPower') or act.get('averagePower')
+                    pwr_str = f", {round(pwr)} W" if pwr else ''
+                    indoor_str = " (rodillo)" if ('indoor' in type_key or 'virtual' in type_key) else ''
+                    activity_lines.append(f"  • {d_s} — {name}{indoor_str}: {dist} km @ {spd_str}{pwr_str}{hr_str}{load_str}")
+                else:
+                    pace_s = f"{int(1000/speed//60)}:{int(1000/speed%60):02d} /km" if speed and speed > 0 else '—'
+                    stride_cm = act.get('avgStrideLength')
+                    stride_str = f", zancada {round(stride_cm)} cm" if stride_cm and 60 < stride_cm < 230 else ''
+                    balance = act.get('avgGroundContactBalance')
+                    bal_str = (f", pisada {round(balance,1)}%izq/{round(100-balance,1)}%der"
+                               if balance and 40 < balance < 60 else '')
+                    activity_lines.append(f"  • {d_s} — {name}: {dist} km @ {pace_s}{hr_str}{load_str}{stride_str}{bal_str}")
         else:
             # Fallback: use pre-enriched recent_activities from dashboard_data
             for act in dashboard_data.get('recent_activities', [])[:7]:
@@ -218,12 +228,21 @@ def generate_daily_recommendation(dashboard_data, user_name="Atleta", training_g
         injuries = goal.get('injuries', '')
         avail_days = goal.get('availability_days', '')
         avail_hours = goal.get('availability_hours_week', '')
+        sport = (goal.get('sport') or 'run').lower()
+        sport_label = {'run': 'carrera a pie', 'bike': 'ciclismo (ruta y rodillo/indoor)',
+                       'multi': 'entrenamiento combinado de carrera y ciclismo'}.get(sport, 'carrera a pie')
 
         if goal_configured:
-            goal_context = f"Objetivo: {race_type} · Ritmo meta: {target_pace} min/km · Pico semanal: {weekly_peak_km} km"
+            if sport == 'bike':
+                ftp = goal.get('ftp')
+                goal_context = f"Objetivo (CICLISMO): {race_type} · Pico semanal: {weekly_peak_km} km"
+                goal_context += f" · FTP: {ftp} W" if ftp else ""
+                specialist_intro = f"ciclismo de rendimiento, especialidad: {race_type} (rutas y rodillo/indoor)"
+            else:
+                goal_context = f"Objetivo: {race_type} · Ritmo meta: {target_pace} min/km · Pico semanal: {weekly_peak_km} km"
+                specialist_intro = f"especialidad: {race_type}, ritmo objetivo {target_pace} minutos el km"
             if goal_desc:
                 goal_context += f" · {goal_desc}"
-            specialist_intro = f"especialidad: {race_type}, ritmo objetivo {target_pace} minutos el km"
         else:
             goal_context = ("Sin objetivo de carrera configurado. "
                             "Basa la recomendación en las métricas fisiológicas y el rendimiento real de las actividades recientes.")
@@ -265,20 +284,21 @@ Hoy es {today_label} ({weekday_label}). Con base en el plan y las actividades re
 
         prompt = f"""
 Eres Sento, un sistema experto en {specialist_intro}.
+El deporte principal del atleta es: {sport_label}. Adapta la sesión recomendada a ese deporte (para ciclismo razona en km/h, potencia/FTP y zonas de bici, incluyendo rodillo/indoor cuando convenga; para carrera en ritmo min/km).
 A continuación te comparto las métricas fisiológicas de {user_name} para el día de hoy:
 {goal_context}
 - VO2 Máx: {vo2_max} ml/kg/min
 - Frecuencia cardíaca en reposo: {rhr} bpm
 - Estrés promedio de ayer: {stress_score}/100
 - Kilómetros acumulados esta semana: {total_run_distance} km (faltan ~{weekly_remaining} km para el pico de {weekly_peak_km} km)
-- Carreras esta semana: {runs_count}
+- Sesiones esta semana: {runs_count}
 {athlete_profile}
 Actividades de las últimas 6 semanas (detalle completo):
 {activities_text}
 {weekly_section}
 {data_context}
 
-Genera la "Prescripción del Día" para el atleta. Basa el nivel de intensidad recomendado en la RHR, el estrés acumulado y la carga de entrenamientos recientes. Si la RHR está elevada o la carga reciente es alta, recomienda recuperación. Si las métricas son favorables, recomienda intensidad.
+Genera la "Prescripción del Día" para el atleta. Basa el nivel de intensidad recomendado en la RHR, el estrés acumulado y la carga de entrenamientos recientes. Si la RHR está elevada o la carga reciente es alta, recomienda recuperación. Si las métricas son favorables, recomienda intensidad. Cuando recomiendes una sesión con carga (fácil, tempo, intervalos, salida larga o de bici), cierra el análisis con una recomendación breve de fuerza preventiva y/o estiramientos/movilidad apropiados para la sesión y para las lesiones/condiciones del atleta.
 
 Debes responder ÚNICAMENTE con un código HTML usando esta estructura exacta (no agregues ```html):
 
@@ -324,18 +344,61 @@ def _format_profile_for_ai(profile: dict | None) -> str:
     sex = sex_map.get(profile.get('sex', ''), profile.get('sex', ''))
     if sex:
         lines.append(f"- Sexo: {sex}")
+
+    # Disciplines the athlete practices (multi-sport profile)
+    disc_map = {'run': 'Correr', 'bike': 'Ciclismo', 'strength': 'Fuerza/Gym',
+                'yoga': 'Yoga/Movilidad', 'swim': 'Natación', 'other': 'Otra'}
+    disciplines = profile.get('disciplines') or []
+    if disciplines:
+        lines.append("- Actividades que practica: "
+                     + ", ".join(disc_map.get(d, d) for d in disciplines))
+
     if profile.get('weekly_days'):
-        lines.append(f"- Días de entrenamiento habituales: {profile['weekly_days']} días/semana")
+        lines.append(f"- Correr — días habituales: {profile['weekly_days']} días/semana")
     if profile.get('weekly_km'):
-        lines.append(f"- Km semanales habituales: {profile['weekly_km']} km/semana")
+        lines.append(f"- Correr — km semanales habituales: {profile['weekly_km']} km/semana")
     lr = profile.get('longest_run', {})
     if lr.get('distance_km'):
-        lr_str = f"- Distancia más larga completada: {lr['distance_km']} km"
+        lr_str = f"- Correr — distancia más larga completada: {lr['distance_km']} km"
         if lr.get('time'):
             lr_str += f" en {lr['time']}"
         if lr.get('date'):
             lr_str += f" ({lr['date']})"
         lines.append(lr_str)
+
+    # Cycling volume
+    cyc = profile.get('cycling', {}) or {}
+    if cyc.get('weekly_km') or cyc.get('weekly_days') or cyc.get('indoor') or cyc.get('outdoor'):
+        where = []
+        if cyc.get('outdoor'):
+            where.append('exterior/ruta')
+        if cyc.get('indoor'):
+            where.append('rodillo/indoor')
+        where_str = f" ({', '.join(where)})" if where else ""
+        cyc_str = f"- Ciclismo{where_str}:"
+        if cyc.get('weekly_days'):
+            cyc_str += f" {cyc['weekly_days']} días/semana,"
+        if cyc.get('weekly_km'):
+            cyc_str += f" {cyc['weekly_km']} km/semana,"
+        if cyc.get('longest_ride_km'):
+            cyc_str += f" salida más larga {cyc['longest_ride_km']} km,"
+        if cyc.get('ftp'):
+            cyc_str += f" FTP {cyc['ftp']} W,"
+        lines.append(cyc_str.rstrip(','))
+
+    # Cross-training frequency
+    ct = profile.get('cross_training', {}) or {}
+    ct_parts = []
+    if ct.get('strength_days'):
+        ct_parts.append(f"fuerza/gym {ct['strength_days']}x/sem")
+    if ct.get('yoga_days'):
+        ct_parts.append(f"yoga/movilidad {ct['yoga_days']}x/sem")
+    if ct.get('swim_days'):
+        ct_parts.append(f"natación {ct['swim_days']}x/sem")
+    if ct.get('other_days') and ct.get('other_activity'):
+        ct_parts.append(f"{ct['other_activity']} {ct['other_days']}x/sem")
+    if ct_parts:
+        lines.append("- Otras actividades: " + ", ".join(ct_parts))
     ref = profile.get('reference_times', {})
     ref_parts = []
     for dist, label in [('5k', '5K'), ('10k', '10K'), ('21k', 'Media'), ('42k', 'Maratón')]:
@@ -381,6 +444,32 @@ def goal_setup_chat(message: str, history: list, raw_data: dict, user_name: str 
         run_acts = [a for a in all_acts_90
                     if "run" in a.get("activityType", {}).get("typeKey", "")]
         run_acts.sort(key=lambda x: x.get("startTimeLocal", ""), reverse=True)
+
+        # Cycling activities (outdoor + indoor/rodillo)
+        bike_acts = [a for a in all_acts_90
+                     if any(k in a.get("activityType", {}).get("typeKey", "")
+                            for k in ("cycling", "biking", "bike"))]
+        bike_acts.sort(key=lambda x: x.get("startTimeLocal", ""), reverse=True)
+        indoor_bike_acts = [a for a in bike_acts
+                            if "indoor" in a.get("activityType", {}).get("typeKey", "")
+                            or "virtual" in a.get("activityType", {}).get("typeKey", "")]
+        total_bike_km = sum(a.get("distance", 0) / 1000.0 for a in bike_acts)
+        total_bike_hours = sum(a.get("duration", 0) / 3600.0 for a in bike_acts)
+
+        # Last bike rides detail (speed in km/h + power if available)
+        bike_lines = []
+        for a in bike_acts[:8]:
+            dist = round(a.get("distance", 0) / 1000.0, 1)
+            d_str = a.get("startTimeLocal", "")[:10]
+            spd = a.get("averageSpeed", 0)
+            spd_str = f" · {round(spd * 3.6, 1)} km/h" if spd and spd > 0 else ""
+            pwr = a.get("avgPower") or a.get("averagePower")
+            pwr_str = f" · {round(pwr)} W" if pwr else ""
+            hr = a.get("averageHR", "")
+            hr_str = f" · FC {hr} bpm" if hr else ""
+            tk = a.get("activityType", {}).get("typeKey", "")
+            where = " (rodillo)" if ("indoor" in tk or "virtual" in tk) else ""
+            bike_lines.append(f"  {d_str}: {dist} km{where}{spd_str}{pwr_str}{hr_str}")
 
         other_types: dict = {}
         for a in all_acts_90:
@@ -473,39 +562,53 @@ def goal_setup_chat(message: str, history: list, raw_data: dict, user_name: str 
 
 === DATOS DEL ATLETA — ÚLTIMOS 90 DÍAS ===
 - FC en reposo (RHR): {rhr} bpm
-- Km totales corridos: {round(total_run_km, 1)} km
-- Promedio semanal: {avg_weekly_km} km/semana
-- Total carreras: {len(run_acts)}
+- Km totales corridos: {round(total_run_km, 1)} km · Total carreras a pie: {len(run_acts)}
+- Km totales en bici: {round(total_bike_km, 1)} km ({round(total_bike_hours, 1)} h) · Total salidas en bici: {len(bike_acts)} (de ellas {len(indoor_bike_acts)} en rodillo/indoor)
+- Promedio semanal corriendo: {avg_weekly_km} km/semana
 - Otras actividades: {other_str}
 
 Resúmenes semanales (últimas 13 semanas):
 {weekly_text if weekly_text.strip() != "(sin resúmenes semanales disponibles)" else chr(10).join(weekly_km_lines)}
 
-Últimas 10 carreras (detalle):
+Últimas 10 carreras a pie (detalle):
 {chr(10).join(pace_lines) if pace_lines else "  (sin carreras recientes)"}
+
+Últimas salidas en bici (detalle):
+{chr(10).join(bike_lines) if bike_lines else "  (sin salidas en bici recientes)"}
 
 {races_block + chr(10) if races_block else ""}=== TU MISIÓN ===
 Si hay competencias registradas en la plataforma (sección anterior), úsalas de manera proactiva. Cuando el atleta mencione una distancia o fecha similar a una competencia registrada, o cuando estés preguntando sobre el evento objetivo, haz referencia natural a esa competencia: "Veo que el [nombre] está programado para el [fecha], ¿es esa tu carrera?" Esto evita que el atleta tenga que teclear datos que ya están en el sistema.
 
-Conversa de forma natural para recopilar la información necesaria. OBLIGATORIO — antes de proponer ningún objetivo ni plan, haz estas 3 preguntas (puedes hacerlas gradualmente, no todas de golpe):
+Este coach soporta CARRERA A PIE y CICLISMO (ruta y rodillo/indoor), así como objetivos mixtos. Detecta el deporte del objetivo del atleta y adapta todas tus preguntas y recomendaciones a ese deporte.
 
-1. **¿Tienes o has tenido alguna lesión reciente** o condición física que debas tomar en cuenta? (Ej: rodilla, tendón de Aquiles, espalda, etc.)
-2. **¿Cuántos días a la semana puedes entrenar** y cuántas horas en total tienes disponibles por semana?
-3. **¿Cuál es tu objetivo de distancia?** (5K, 10K, media maratón, maratón, trail, etc.)
+Conversa de forma natural para recopilar la información necesaria. OBLIGATORIO — haz SIEMPRE estas 3 preguntas (una a una, de forma gradual) y NUNCA generes el objetivo final sin haberlas hecho, aunque el atleta te dé el evento de entrada:
 
-Una vez que tengas esas 3 respuestas, también pregunta o infiere:
-- Tiempo o ritmo objetivo (min/km o tiempo total HH:MM:SS), si lo tiene
-- Fecha del evento, si la tiene
+1. **¿Cuál es tu deporte y evento objetivo?** ¿Es una carrera a pie (5K, 10K, media, maratón, trail) o una prueba de ciclismo (gran fondo, ruta, criterium, gravel, MTB)? Si es en bici, ¿entrenas más en ruta al aire libre, en rodillo/indoor, o ambos?
+2. **¿Tienes o has tenido alguna lesión reciente** o condición física que debas tomar en cuenta? (Ej: rodilla, tendón de Aquiles, espalda, lumbar por posición en bici, etc.)
+3. **¿Cuántos días a la semana puedes entrenar** y cuántas horas en total tienes disponibles por semana?
+
+REGLA CRÍTICA: si el atleta arranca dándote directamente el evento/objetivo (ej. "quiero hacer el Gran Fondo de octubre"), NO saltes a proponer el objetivo. Agradece el dato y continúa preguntando OBLIGATORIAMENTE por lesiones (pregunta 2) y disponibilidad (pregunta 3) antes de emitir cualquier objetivo. La pregunta de lesiones nunca se omite.
+
+Una vez que tengas esas respuestas, también pregunta o infiere:
+- Objetivo de rendimiento: tiempo/ritmo meta (min/km para correr) o, en ciclismo, potencia objetivo, FTP si lo conoce (W), o velocidad/tiempo meta.
+- Fecha del evento, si la tiene.
+- Si es ciclismo: **¿cuántos días a la semana prefieres entrenar en rodillo/indoor** vs. salir a ruta?
 - **¿Cuántos días a la semana puedes dedicar a ejercicios de fuerza o gimnasio** (tren inferior, core)? (puede ser 0 si no quiere fuerza)
-- **¿Tienes preferencias sobre cuándo entrenar?** Por ejemplo: ¿qué día prefieres hacer tu carrera larga (¿sábado o domingo?)? ¿Qué día(s) prefieres descansar? ¿Hay algún día fijo en que no puedas entrenar?
+- **¿Quieres incluir días dedicados a movilidad y estiramientos?** (¿cuántos por semana? puede ser 0)
+- **¿Tienes preferencias sobre cuándo entrenar?** Por ejemplo: ¿qué día prefieres hacer tu sesión larga (¿sábado o domingo?)? ¿Qué día(s) prefieres descansar? ¿Hay algún día fijo en que no puedas entrenar?
 
 Evalúa si el objetivo es realista en función de los datos del atleta. Si es demasiado ambicioso, sugiere uno más alcanzable con argumentos basados en los datos. Si es conservador, menciónalo positivamente.
 
 === REGLAS DE DURACIÓN MÍNIMA DE PLAN ===
-Al proponer un plan de entrenamiento, usa estos rangos según la distancia objetivo:
+Al proponer un plan de entrenamiento, usa estos rangos según la prueba objetivo:
+Carrera a pie:
 - **10K**: mínimo 6 semanas · óptimo 8–12 semanas
 - **Media maratón**: mínimo 8 semanas · óptimo 12–16 semanas
 - **Maratón**: mínimo 12 semanas · óptimo 16–20 semanas
+Ciclismo:
+- **Carrera de ruta / criterium**: mínimo 8 semanas · óptimo 10–16 semanas
+- **Gran fondo / gravel (60–120 km)**: mínimo 10 semanas · óptimo 12–20 semanas
+- **MTB maratón / century (>120 km)**: mínimo 12 semanas · óptimo 16–24 semanas
 
 Si la fecha del evento no deja suficiente tiempo para el mínimo recomendado, adviértelo claramente y sugiere alternativas (cambiar evento, ajustar objetivo de tiempo, etc.).
 
@@ -519,26 +622,34 @@ Cuando el atleta confirme el objetivo y tengas los datos mínimos (tipo de carre
 
 ```goal_json
 {{
-  "race_type": "tipo de carrera",
+  "sport": "run | bike | multi",
+  "race_type": "tipo de prueba (ej: Maratón, Gran Fondo 100k, Criterium)",
   "target_pace_str": "M:SS",
   "target_pace_min": N,
   "target_pace_sec": NN,
   "weekly_peak_km": N,
+  "ftp": N,
+  "indoor_days": N,
   "easy_hr_max": N,
   "tempo_hr_min": N,
   "tempo_hr_max": N,
   "interval_hr_min": N,
-  "description": "descripción breve del evento y fecha",
+  "description": "SOLO el nombre/descripción general del evento y su distancia (ej: 'Gran Fondo Desafío Morelos 2026, 94km'). NUNCA incluyas aquí el objetivo personal, la motivación ni frases como 'Objetivo: ...' o 'completar disfrutando' — eso va en otros campos, no en la descripción del evento.",
   "event_date": "YYYY-MM-DD",
   "injuries": "descripción de lesiones o condiciones, o 'ninguna'",
   "availability_days": N,
   "availability_hours_week": N,
   "strength_days": N,
+  "mobility_days": N,
   "schedule_preferences": "ej: largo el domingo, descanso el lunes y viernes, no puedo entrenar los miércoles",
   "plan_duration_weeks": N,
   "plan_start_date": "YYYY-MM-DD"
 }}
 ```
+Notas sobre los campos:
+- "sport": usa "run" para carrera a pie, "bike" para ciclismo, "multi" para objetivos combinados.
+- Para ciclismo, "ftp" es la potencia umbral funcional en vatios (usa 0 o null si no la conoce) e "indoor_days" es cuántas sesiones semanales prefiere en rodillo/indoor.
+- "mobility_days": días semanales dedicados a movilidad/estiramientos (0 si no quiere sesiones aparte).
 
 Solo incluye ese bloque cuando el atleta confirme o pida proceder. Puedes actualizar el bloque si ajusta algo después.
 Responde en español. Sé directo, motivador y profesional. Usa negritas y listas cuando ayude a la claridad.
@@ -713,6 +824,53 @@ Responde de forma clara, directa y profesional. Usa los datos reales de arriba. 
         return f"Error al consultar la IA: {str(e)}"
 
 
+def _build_sport_specific_block(sport: str, race_type: str, ftp, indoor_days) -> str:
+    """Returns sport-specific coaching principles (running vs cycling) for the plan prompt."""
+    if sport == "bike":
+        ftp_line = (f"- FTP (potencia umbral funcional): {ftp} W" if ftp
+                    else "- FTP: no proporcionada; estima zonas a partir de FC y percepción de esfuerzo (RPE).")
+        indoor_line = (f"- Sesiones en rodillo/indoor preferidas por semana: {indoor_days}"
+                       if indoor_days else "- Rodillo/indoor: úsalo para sesiones estructuradas de intervalos y días de mal clima.")
+        return f"""=== DEPORTE: CICLISMO ===
+Este es un plan de CICLISMO (no de carrera a pie). Toda la carga, los workouts y los ritmos deben expresarse en términos ciclistas.
+{ftp_line}
+{indoor_line}
+
+PRINCIPIOS DE VOLUMEN Y CARGA (CICLISMO):
+- El volumen ciclista se mide mejor en HORAS y en TSS (Training Stress Score), no solo en km. Reporta cada sesión con duración estimada (campo "minutes") y, cuando aplique, km aproximados.
+- Regla de progresión: el tiempo/carga semanal no debe subir más del 10–15% respecto a la semana de carga previa.
+- La salida larga (long ride) escala según el objetivo:
+  * Gran Fondo / century (>100 km): salida larga de 3–5 h en pico.
+  * Carrera de ruta / criterium: salidas más cortas e intensas, énfasis en intervalos de umbral y VO2.
+  * Gravel / MTB maratón: salidas largas específicas en terreno del evento.
+- Distribución 80/20: 80% en resistencia aeróbica (Z2, "endurance"), 20% en umbral (sweet spot / FTP) y VO2 max.
+
+ZONAS DE POTENCIA (si hay FTP) — usa % de FTP:
+  * Recuperación activa: <55% FTP
+  * Resistencia (Z2): 56–75% FTP
+  * Tempo: 76–90% FTP
+  * Sweet Spot / Umbral: 88–105% FTP
+  * VO2 Max: 106–120% FTP
+Si no hay FTP, expresa las zonas por FC y por RPE (escala 1–10).
+
+SESIONES INDOOR / RODILLO (OBLIGATORIO usarlas cuando aporten valor):
+- Usa el tipo de workout "bike_indoor" para sesiones estructuradas en rodillo/smart trainer (ideales para intervalos de precisión, sweet spot, y días de clima adverso).
+- Usa el tipo "bike" para las salidas al aire libre (endurance, largas, técnicas de descenso/grupo).
+- Las sesiones indoor rinden más por minuto (sin paradas): 1 h de rodillo ≈ 1.5 h de ruta en carga. Ajusta la duración en consecuencia.
+
+TIPOS DE WORKOUT VÁLIDOS PARA CICLISMO: rest, easy (rodaje suave en bici), tempo, intervals, long (equivale a salida larga), bike (ruta libre), bike_indoor (rodillo), cross (fuerza), mobility (estiramiento/movilidad), race.
+NOTA: para ciclismo, interpreta 'easy'/'tempo'/'intervals'/'long' como sesiones sobre la bici (ruta o rodillo según convenga)."""
+    if sport == "multi":
+        return f"""=== DEPORTE: MIXTO (CARRERA + CICLISMO) ===
+El atleta combina carrera a pie y ciclismo. Distribuye las sesiones entre ambos deportes de forma inteligente:
+- Usa el ciclismo (tipos "bike" y "bike_indoor") como entrenamiento cruzado de bajo impacto para sumar volumen aeróbico sin la carga de impacto de correr — especialmente útil si hay lesiones de impacto.
+- Mantén las sesiones clave del deporte del evento principal ({race_type}) como prioridad.
+- Aplica las zonas de FC para correr y zonas de potencia/FC para la bici (ver reglas de cada deporte).
+- Los días de rodillo ("bike_indoor") son ideales para recuperación activa estructurada y días de mal clima."""
+    # default: running
+    return ""
+
+
 def generate_training_plan_schedule(goal: dict, weekly_summaries: dict | None = None, user_name: str = "Atleta", user_tz: str | None = None, user_profile: dict | None = None) -> dict | None:
     """
     Generates a structured week-by-week training plan from goal parameters.
@@ -736,8 +894,15 @@ def generate_training_plan_schedule(goal: dict, weekly_summaries: dict | None = 
         availability_days = goal.get('availability_days') or 4
         availability_hours = goal.get('availability_hours_week') or 5
         strength_days = int(goal.get('strength_days') or 0)
+        mobility_days = int(goal.get('mobility_days') or 0)
         schedule_preferences = goal.get('schedule_preferences') or 'sin preferencias específicas'
+        sport = (goal.get('sport') or 'run').lower()
+        indoor_days = goal.get('indoor_days')
+        ftp = goal.get('ftp')
         today_str = today_tz(user_tz).isoformat()
+
+        # Sport-specific coaching blocks
+        sport_specific = _build_sport_specific_block(sport, race_type, ftp, indoor_days)
 
         from weekly_summarizer import format_weekly_summaries_for_ai
         weekly_text = format_weekly_summaries_for_ai(weekly_summaries or {}, num_weeks=8)
@@ -750,8 +915,9 @@ def generate_training_plan_schedule(goal: dict, weekly_summaries: dict | None = 
 {profile_text}
 
 === OBJETIVO ===
-- Distancia: {race_type}
-- Ritmo meta: {target_pace} min/km
+- Deporte: {sport} (run=carrera a pie, bike=ciclismo, multi=mixto)
+- Prueba/Distancia: {race_type}
+- Ritmo/objetivo meta: {target_pace} min/km (para ciclismo interpreta como referencia de intensidad, prioriza zonas de potencia/FC)
 - Fecha del evento: {event_date or 'no definida'}
 - Pico semanal acordado: {weekly_peak_km} km
 - Duración del plan: {plan_duration_weeks} semanas
@@ -759,7 +925,10 @@ def generate_training_plan_schedule(goal: dict, weekly_summaries: dict | None = 
 - Lesiones/condiciones: {injuries}
 - Disponibilidad: {availability_days} días/semana, {availability_hours}h/semana totales
 - Días de fuerza: {strength_days} días/semana
+- Días de movilidad/estiramiento: {mobility_days} días/semana
 - Preferencias de horario: {schedule_preferences}
+
+{sport_specific}
 
 === NIVEL ACTUAL (últimas 8 semanas) ===
 {weekly_text}
@@ -814,10 +983,16 @@ def generate_training_plan_schedule(goal: dict, weekly_summaries: dict | None = 
    - Si hay lesiones, evitar impacto alto y mencionar precauciones específicas en la descripción de cada workout afectado.
 
 7. FUERZA Y PREVENCIÓN
-   - Asignar exactamente {strength_days} días a la semana de tipo 'cross' enfocados en fuerza de tren inferior y core (glúteos, isquiotibiales, cadera, estabilización).
+   - Asignar exactamente {strength_days} días a la semana de tipo 'cross' enfocados en fuerza de tren inferior y core (glúteos, isquiotibiales, cadera, estabilización). Para ciclistas, añadir además énfasis en fuerza de piernas (sentadilla, peso muerto, zancadas) y core para la posición sobre la bici.
    - Si {strength_days} es 0, no incluir sesiones de fuerza.
    - Si {injuries} menciona asimetrías, desequilibrios musculares o lesiones (ej. isquiotibiales, cadera, rodilla), los días de fuerza son OBLIGATORIOS (mínimo 1–2 días) aunque {strength_days} sea 0, y deben incluir trabajo correctivo específico.
-   - Los días de fuerza NO deben coincidir con sesiones de carrera intensa (tempo, intervals) en el mismo día. Preferir combinarlos con días 'easy' o de descanso activo.
+   - Los días de fuerza NO deben coincidir con sesiones de carrera/bici intensa (tempo, intervals) en el mismo día. Preferir combinarlos con días 'easy' o de descanso activo.
+   - En la descripción de CADA workout de tipo 'easy', 'long', 'tempo', 'intervals', 'bike', 'bike_indoor' añade una recomendación breve de estiramiento/movilidad post-sesión específica para los músculos trabajados (ej. cuádriceps, isquios, flexores de cadera, gemelos, banda IT).
+
+8. MOVILIDAD Y ESTIRAMIENTOS
+   - Asignar exactamente {mobility_days} días a la semana de tipo 'mobility' (rutinas de estiramiento, movilidad articular, foam rolling, yoga suave de 15–25 min). Usa el campo "minutes" para la duración.
+   - Si {mobility_days} es 0, integra igualmente 5–10 min de estiramientos en la descripción de los días de entrenamiento (no como sesión aparte).
+   - Los días de 'mobility' son ideales tras sesiones intensas o el día previo a una sesión clave; NUNCA cuentan como día duro y pueden coexistir con descanso.
 
 Genera EXACTAMENTE {plan_duration_weeks} semanas. Devuelve ÚNICAMENTE JSON válido sin ningún texto adicional ni marcadores de código markdown:
 
@@ -846,6 +1021,7 @@ Genera EXACTAMENTE {plan_duration_weeks} semanas. Devuelve ÚNICAMENTE JSON vál
           "type": "rest",
           "label": "Descanso",
           "km": 0,
+          "minutes": 0,
           "zone": "",
           "description": "descripción breve en 1-2 oraciones"
         }}
@@ -855,7 +1031,9 @@ Genera EXACTAMENTE {plan_duration_weeks} semanas. Devuelve ÚNICAMENTE JSON vál
   "disclaimer": "Este plan es una recomendación generada por inteligencia artificial basada en tus datos reales de entrenamiento. Siempre escucha a tu cuerpo y ajusta la carga según cómo te sientas. Ante cualquier molestia o dolor, descansa y consulta con un profesional de la salud o entrenador certificado."
 }}
 
-Tipos válidos de workout: rest, easy, tempo, intervals, long, cross, race"""
+Tipos válidos de workout: rest, easy, tempo, intervals, long, cross, race, bike, bike_indoor, mobility
+- 'bike' = salida de ciclismo al aire libre · 'bike_indoor' = sesión en rodillo/smart trainer · 'mobility' = estiramiento/movilidad.
+- Usa "km" para sesiones con distancia y "minutes" para sesiones basadas en tiempo (rodillo, fuerza, movilidad). Puedes usar ambos cuando aplique. Deja en 0 lo que no corresponda."""
 
         response = client.models.generate_content(
             model='gemini-2.5-pro',

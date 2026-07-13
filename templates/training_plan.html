@@ -102,6 +102,12 @@
   .type-cross   .workout-label { color: #6d28d9; }
   .type-race    { background: #fef9c3; }
   .type-race    .workout-label { color: #854d0e; }
+  .type-bike    { background: #cffafe; }
+  .type-bike    .workout-label { color: #0e7490; }
+  .type-bike_indoor { background: #e0f2fe; }
+  .type-bike_indoor .workout-label { color: #0369a1; }
+  .type-mobility { background: #fce7f3; }
+  .type-mobility .workout-label { color: #be185d; }
 
   /* Legend */
   .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
@@ -255,6 +261,9 @@
     <div class="legend-item"><div class="legend-dot" style="background:#fed7aa"></div> {{ _('Tempo') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#fecaca"></div> {{ _('Intervalos') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#ede9fe"></div> {{ _('Cross / Fuerza') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#cffafe"></div> {{ _('Ciclismo (ruta)') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e0f2fe"></div> {{ _('Ciclismo (rodillo)') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fce7f3"></div> {{ _('Movilidad / Estiramiento') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#fef9c3"></div> {{ _('Carrera / Evento') }}</div>
   </div>
   {% if week_actuals %}
@@ -267,7 +276,7 @@
   </div>
   {% endif %}
 
-  {% set workout_icons = {'rest': '😴', 'easy': '🏃', 'tempo': '⚡', 'intervals': '🔥', 'long': '🌿', 'cross': '💪', 'race': '🏁'} %}
+  {% set workout_icons = {'rest': '😴', 'easy': '🏃', 'tempo': '⚡', 'intervals': '🔥', 'long': '🌿', 'cross': '💪', 'race': '🏁', 'bike': '🚴', 'bike_indoor': '🚴‍♂️', 'mobility': '🧘'} %}
   {% set _status_colors = {'green': '#16a34a', 'yellow': '#d97706', 'red': '#dc2626', 'white': '#6b7280'} %}
   {% set _status_bg = {'green': '#dcfce7', 'yellow': '#fef3c7', 'red': '#fee2e2', 'white': '#f3f4f6'} %}
 
@@ -304,6 +313,7 @@
           <div class="workout-icon">{% if act %}{{ act.primary_act.icon }}{% else %}{{ workout_icons.get(w.type, '🏃') }}{% endif %}</div>
           <div class="workout-label">{{ w.label }}</div>
           {% if w.km and w.km > 0 %}<div class="workout-km">{{ w.km }} km</div>{% endif %}
+          {% if w.minutes and w.minutes > 0 %}<div class="workout-km">{{ w.minutes }} min</div>{% endif %}
           {% if w.zone %}<div class="workout-km" style="color:#6b7280">{{ w.zone }}</div>{% endif %}
           <div class="workout-desc">{{ w.description }}</div>
           {% if act %}

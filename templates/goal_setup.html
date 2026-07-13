@@ -121,7 +121,7 @@
 
   <!-- Sidebar: 90-day stats -->
   <aside class="sidebar">
-    {% if run_count_90 == 0 %}
+    {% if run_count_90 == 0 and bike_count_90 == 0 %}
       <h3>Sin datos cargados</h3>
       <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:14px;">
         Importa tus actividades para que Sento te conozca y pueda darte una recomendación más personalizada.
@@ -137,6 +137,7 @@
       </div>
     {% else %}
       <h3>Tus datos · 90 días</h3>
+      {% if run_count_90 > 0 %}
       <div class="stat-item">
         <span class="stat-label">Km corridos</span>
         <span class="stat-value">{{ total_run_km_90 }} km</span>
@@ -149,6 +150,17 @@
         <span class="stat-label">Carreras</span>
         <span class="stat-value">{{ run_count_90 }}</span>
       </div>
+      {% endif %}
+      {% if bike_count_90 > 0 %}
+      <div class="stat-item">
+        <span class="stat-label">🚴 Km en bici</span>
+        <span class="stat-value">{{ total_bike_km_90 }} km</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">🚴 Salidas</span>
+        <span class="stat-value">{{ bike_count_90 }}</span>
+      </div>
+      {% endif %}
       {% if recent_paces %}
       <div style="margin-top:12px;">
         <div style="font-size:12px;color:#888;margin-bottom:6px;">Ritmos recientes</div>
@@ -162,7 +174,8 @@
     {% if existing_goal %}
     <div class="existing-goal">
       <strong>🎯 Objetivo actual</strong>
-      {{ existing_goal.race_type }} · {{ existing_goal.target_pace_str }} /km<br>
+      {% if existing_goal.sport == 'bike' %}🚴{% elif existing_goal.sport == 'multi' %}🔀{% else %}🏃{% endif %}
+      {{ existing_goal.race_type }}{% if existing_goal.sport != 'bike' %} · {{ existing_goal.target_pace_str }} /km{% elif existing_goal.ftp %} · FTP {{ existing_goal.ftp }} W{% endif %}<br>
       {{ existing_goal.weekly_peak_km }} km/sem pico
       {% if existing_goal.event_date %}<br>📅 {{ existing_goal.event_date }}{% endif %}
     </div>
@@ -193,14 +206,14 @@
 
       <!-- Initial AI greeting -->
       <div class="msg assistant">
-        <div class="avatar ai">🏃</div>
+        <div class="avatar ai">🏅</div>
         <div class="bubble ai">
-          {% if run_count_90 == 0 %}
+          {% if run_count_90 == 0 and bike_count_90 == 0 %}
             ¡Hola <strong>{{ user_name }}</strong>! Soy Sento. Aún no tengo información cargada de tus entrenamientos — te recomiendo importarla para que pueda conocerte mejor y darte una recomendación personalizada. Aunque si lo prefieres, podemos definir tu plan sin dicha información.<br><br>
           {% else %}
-            ¡Hola <strong>{{ user_name }}</strong>! Soy Sento. Ya tengo acceso a tus datos de los últimos 90 días ({{ total_run_km_90 }} km corridos, promedio de {{ avg_weekly_km }} km/semana).<br><br>
+            ¡Hola <strong>{{ user_name }}</strong>! Soy Sento. Ya tengo acceso a tus datos de los últimos 90 días{% if run_count_90 > 0 %} · 🏃 {{ total_run_km_90 }} km corridos (~{{ avg_weekly_km }} km/sem){% endif %}{% if bike_count_90 > 0 %} · 🚴 {{ total_bike_km_90 }} km en bici{% endif %}.<br><br>
           {% endif %}
-          ¿Cuál es tu próximo objetivo de carrera? Cuéntame qué tienes en mente: tipo de prueba, tiempo o ritmo que buscas y fecha aproximada del evento.
+          ¿Cuál es tu próximo objetivo? Puede ser de <strong>carrera a pie</strong> (5K, 10K, media, maratón, trail) o de <strong>ciclismo</strong> (ruta, gran fondo, gravel, MTB — en exterior o rodillo). Cuéntame qué tienes en mente: tipo de prueba, tiempo/ritmo o potencia que buscas, y la fecha aproximada del evento.
         </div>
       </div>
 
@@ -311,6 +324,14 @@
       <div class="goal-card-header">✅ Objetivo estructurado — revisa y confirma</div>
       <div class="goal-fields">
         <div class="goal-field">
+          <label>Deporte</label>
+          <select id="gf_sport">
+            <option value="run" ${(goalDraft.sport || 'run') === 'run' ? 'selected' : ''}>🏃 Carrera a pie</option>
+            <option value="bike" ${goalDraft.sport === 'bike' ? 'selected' : ''}>🚴 Ciclismo</option>
+            <option value="multi" ${goalDraft.sport === 'multi' ? 'selected' : ''}>🔀 Mixto (carrera + bici)</option>
+          </select>
+        </div>
+        <div class="goal-field">
           <label>Tipo de prueba</label>
           <input type="text" id="gf_race_type" value="${esc(goalDraft.race_type || '')}">
         </div>
@@ -321,6 +342,14 @@
         <div class="goal-field">
           <label>Pico semanal (km)</label>
           <input type="number" id="gf_weekly_peak" value="${esc(goalDraft.weekly_peak_km || '')}">
+        </div>
+        <div class="goal-field">
+          <label>FTP ciclismo (W, opcional)</label>
+          <input type="number" id="gf_ftp" min="0" max="600" value="${esc(goalDraft.ftp || '')}">
+        </div>
+        <div class="goal-field">
+          <label>Días en rodillo/indoor / semana</label>
+          <input type="number" id="gf_indoor_days" min="0" max="7" value="${esc(goalDraft.indoor_days ?? '')}">
         </div>
         <div class="goal-field">
           <label>Fecha del evento</label>
@@ -361,6 +390,10 @@
         <div class="goal-field">
           <label>Días de fuerza / semana</label>
           <input type="number" id="gf_strength_days" min="0" max="4" value="${esc(goalDraft.strength_days ?? 0)}">
+        </div>
+        <div class="goal-field">
+          <label>Días de movilidad/estiramiento / semana</label>
+          <input type="number" id="gf_mobility_days" min="0" max="7" value="${esc(goalDraft.mobility_days ?? 0)}">
         </div>
         <div class="goal-field goal-field--full">
           <label>Preferencias de horario</label>
@@ -514,12 +547,17 @@
     const availHours = parseFloat(document.getElementById('gf_avail_hours').value) || null;
     const planWeeks = parseInt(document.getElementById('gf_plan_weeks').value) || null;
 
+    const indoorEl = document.getElementById('gf_indoor_days');
+    const ftpEl = document.getElementById('gf_ftp');
     const goal = {
+      sport: document.getElementById('gf_sport').value,
       race_type: document.getElementById('gf_race_type').value.trim(),
       target_pace_str: paceStr,
       target_pace_min: paceMin,
       target_pace_sec: paceSec,
       weekly_peak_km: parseFloat(document.getElementById('gf_weekly_peak').value) || 40,
+      ftp: parseInt(ftpEl.value) || 0,
+      indoor_days: indoorEl.value === '' ? 0 : (parseInt(indoorEl.value) || 0),
       easy_hr_max: parseInt(document.getElementById('gf_easy_hr').value) || 155,
       tempo_hr_min: parseInt(document.getElementById('gf_tempo_min').value) || 155,
       tempo_hr_max: parseInt(document.getElementById('gf_tempo_max').value) || 170,
@@ -530,6 +568,7 @@
       availability_days: availDays,
       availability_hours_week: availHours,
       strength_days: parseInt(document.getElementById('gf_strength_days').value) || 0,
+      mobility_days: parseInt(document.getElementById('gf_mobility_days').value) || 0,
       schedule_preferences: document.getElementById('gf_schedule_prefs').value.trim() || 'sin preferencias específicas',
       plan_duration_weeks: planWeeks,
       plan_start_date: document.getElementById('gf_plan_start').value.trim(),

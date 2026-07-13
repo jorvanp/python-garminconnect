@@ -1,4 +1,5 @@
 garminconnect
+garth
 Flask
 waitress
 google-cloud-storage

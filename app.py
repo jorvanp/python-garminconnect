@@ -15,7 +15,11 @@ from datetime import timedelta
 app = Flask(__name__)
 app.secret_key = os.environ.get('SESSION_SECRET', os.urandom(32))
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
-app.config['SESSION_COOKIE_SECURE'] = True
+# En desarrollo local (LOCAL_DEV=1) servimos por http://localhost, donde una
+# cookie Secure no se guarda y rompería el flujo OAuth (state/CSRF). En producción
+# LOCAL_DEV no está seteado, así que la cookie sigue siendo Secure como siempre.
+_IS_LOCAL = os.environ.get('LOCAL_DEV') == '1'
+app.config['SESSION_COOKIE_SECURE'] = not _IS_LOCAL
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 

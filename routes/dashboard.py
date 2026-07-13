@@ -812,21 +812,44 @@ def save_goal():
     except ValueError:
         return jsonify({"error": "Pico semanal inválido (1–300 km)."}), 400
 
+    sport = (data.get('sport') or 'run').strip().lower()
+    if sport not in ('run', 'bike', 'multi'):
+        sport = 'run'
+
+    def _clamp_int(val, lo, hi, default=0):
+        try:
+            return max(lo, min(hi, int(val)))
+        except (TypeError, ValueError):
+            return default
+
+    # The event description is used as the race name; it must describe only the
+    # event, never the athlete's personal goal. Strip any trailing "Objetivo: ..."
+    # the AI may have appended.
+    description = (data.get('description') or '').strip()
+    description = _re.sub(r'[\s.,;:·|\-]*objetivo\s*:.*$', '', description,
+                          flags=_re.IGNORECASE).strip()
+
     goal = {
+        "sport": sport,
         "race_type": (data.get('race_type') or 'Carrera').strip()[:60],
         "target_pace_str": f"{pace_min}:{pace_sec:02d}",
         "target_pace_min": pace_min,
         "target_pace_sec": pace_sec,
         "weekly_peak_km": weekly_peak,
+        "ftp": _clamp_int(data.get('ftp'), 0, 600, 0),
+        "indoor_days": _clamp_int(data.get('indoor_days'), 0, 7, 0),
         "easy_hr_max": int(data.get('easy_hr_max') or 155),
         "tempo_hr_min": int(data.get('tempo_hr_min') or 155),
         "tempo_hr_max": int(data.get('tempo_hr_max') or 170),
         "interval_hr_min": int(data.get('interval_hr_min') or 170),
-        "description": (data.get('description') or '').strip()[:200],
+        "description": description[:200],
         "event_date": (data.get('event_date') or '').strip()[:10],
         "injuries": (data.get('injuries') or '').strip()[:300],
         "availability_days": data.get('availability_days') or None,
         "availability_hours_week": data.get('availability_hours_week') or None,
+        "strength_days": _clamp_int(data.get('strength_days'), 0, 7, 0),
+        "mobility_days": _clamp_int(data.get('mobility_days'), 0, 7, 0),
+        "schedule_preferences": (data.get('schedule_preferences') or 'sin preferencias específicas').strip()[:200],
         "plan_duration_weeks": data.get('plan_duration_weeks') or None,
         "plan_start_date": (data.get('plan_start_date') or '').strip()[:10],
     }
@@ -838,7 +861,7 @@ def save_goal():
     race_candidates = []
     if goal.get('event_date'):
         raw_candidates = firestore_helper.find_similar_races(
-            goal.get('race_type', ''), goal.get('event_date', '')
+            str(goal.get('race_type') or ''), str(goal.get('event_date') or '')
         )
         for r in raw_candidates:
             participant_names = [p.get('name', '') for p in r.get('participants', {}).values() if p.get('name')]
@@ -948,19 +971,26 @@ def goal_setup_view():
     raw_data = _load_data(user_id)
 
     run_acts = []
+    bike_acts = []
     if raw_data:
         cutoff = (today_cdmx() - _td(days=90)).isoformat()
         cutoff_month = cutoff[:7]
         for m_key, m_data in raw_data.get("months", {}).items():
             if m_key >= cutoff_month:
                 for a in m_data.get("activities", []):
-                    if ("run" in a.get("activityType", {}).get("typeKey", "")
-                            and a.get("startTimeLocal", "")[:10] >= cutoff):
+                    tk = a.get("activityType", {}).get("typeKey", "")
+                    if a.get("startTimeLocal", "")[:10] < cutoff:
+                        continue
+                    if "run" in tk:
                         run_acts.append(a)
+                    elif any(k in tk for k in ("cycling", "biking", "bike")):
+                        bike_acts.append(a)
         run_acts.sort(key=lambda x: x.get("startTimeLocal", ""), reverse=True)
+        bike_acts.sort(key=lambda x: x.get("startTimeLocal", ""), reverse=True)
 
     total_run_km_90 = round(sum(a.get("distance", 0) / 1000 for a in run_acts), 1)
     avg_weekly_km = round(total_run_km_90 / 13, 1) if run_acts else 0.0
+    total_bike_km_90 = round(sum(a.get("distance", 0) / 1000 for a in bike_acts), 1)
 
     recent_paces = []
     for a in run_acts[:5]:
@@ -980,6 +1010,8 @@ def goal_setup_view():
                            avg_weekly_km=avg_weekly_km,
                            total_run_km_90=total_run_km_90,
                            run_count_90=len(run_acts),
+                           total_bike_km_90=total_bike_km_90,
+                           bike_count_90=len(bike_acts),
                            recent_paces=recent_paces,
                            existing_goal=existing_goal,
                            user_name=user_name,

@@ -1,6 +1,6 @@
 # 🏃 Sento Run
 
-App web de coaching de fitness personalizado, desplegada en Google Cloud Platform. Los usuarios conectan su cuenta Garmin (o importan actividades via CSV), y el asistente IA **Sento** genera planes de entrenamiento semana a semana, responde preguntas de fitness y registra el progreso hacia una meta de carrera.
+App web de coaching de fitness personalizado, desplegada en Google Cloud Platform. Los usuarios conectan su cuenta Garmin (o importan actividades via CSV), y el asistente IA **Sento** genera planes de entrenamiento semana a semana, responde preguntas de fitness y registra el progreso hacia una meta de carrera a pie o de ciclismo (multideporte).
 
 ---
 
@@ -51,7 +51,7 @@ tests/
 
 ## Funcionalidades principales
 
-- **Plan de entrenamiento personalizado**: Sento genera un plan semana a semana basado en el objetivo del usuario (10K, media maratón, maratón), su disponibilidad, historial de actividades y zonas de frecuencia cardíaca
+- **Plan de entrenamiento personalizado (multideporte)**: Sento genera un plan semana a semana según el objetivo del usuario — carrera a pie (10K, media, maratón, trail) o ciclismo (ruta, gran fondo, gravel, MTB; exterior o rodillo/indoor) — con su disponibilidad, historial de actividades, zonas de FC/potencia y sesiones de fuerza y movilidad
 - **Chat con Sento**: El asistente IA responde preguntas sobre entrenamiento, nutrición deportiva y recuperación. Limita su contexto exclusivamente a fitness
 - **Importación de actividades**: Los usuarios pueden subir exports CSV de Garmin Connect cuando la sincronización directa no está disponible
 - **Panel de administración**: Gestión de usuarios, toggles globales de funcionalidades, visualización del dashboard de cualquier usuario
@@ -86,15 +86,18 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Variables de entorno mínimas
-export FLASK_APP=app.py
-export FLASK_ENV=development
 export GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
 export OAUTH_CLIENT_ID=...
 export OAUTH_CLIENT_SECRET=...
 export GEMINI_API_KEY=...
 
-flask run
+# Correr en local (LOCAL_DEV ajusta la cookie de sesión para http://localhost
+# y habilita /auth/dev-login para saltar Google OAuth en desarrollo)
+LOCAL_DEV=1 PORT=8080 python app.py    # http://localhost:8080
 ```
+
+- Para el login normal con Google en local, agrega `http://localhost:8080/auth/callback` a las *Authorized redirect URIs* del cliente OAuth.
+- Alternativa sin OAuth: visita `http://localhost:8080/auth/dev-login` (solo con `LOCAL_DEV=1`) para entrar como un usuario existente de Firestore. `DEV_LOGIN_EMAIL` elige cuál.
 
 ---
 
