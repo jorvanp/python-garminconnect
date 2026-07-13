@@ -147,6 +147,7 @@ def view_user_plan(uid: str):
                            next_regen_date=next_regen_date,
                            plan_stale=plan_stale,
                            is_premium=bool(user.get('is_premium')),
+                           week_actuals={},
                            _admin_viewing=True,
                            _admin_user_email=user.get('email', uid),
                            _viewed_uid=uid)

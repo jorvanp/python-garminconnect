@@ -146,3 +146,12 @@ dmypy.json
 
 # Ignore folder for local testing
 ignore/
+
+# Basura macOS
+.DS_Store
+
+# venv accidental
+path/
+
+# salida de graphify
+graphify-out/

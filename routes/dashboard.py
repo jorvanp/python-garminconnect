@@ -1269,6 +1269,101 @@ def training_plan_view():
            (plan_pace and goal_pace and plan_pace != goal_pace):
             plan_stale = True
 
+    # --- Match actual activities to every week/day of the plan ---
+    week_actuals = {}  # {week_number: {day_name_lower: enriched}}
+    _PLAN_DAY_OFFSETS = {
+        'lunes': 0, 'martes': 1, 'miércoles': 2, 'miercoles': 2,
+        'jueves': 3, 'viernes': 4, 'sábado': 5, 'sabado': 5, 'domingo': 6,
+    }
+    _PLAN_ACT_ICONS = {
+        'running': '🏃', 'trail_running': '🏔', 'cycling': '🚴',
+        'indoor_cycling': '🚴', 'mountain_biking': '🚵', 'strength_training': '💪',
+        'swimming': '🏊', 'open_water_swimming': '🏊', 'walking': '🚶',
+        'yoga': '🧘', 'fitness_equipment': '🏋', 'elliptical': '🔄',
+        'cardio': '🤸', 'hiking': '🥾', 'rowing': '🚣',
+    }
+    def _plan_act_icon(type_key):
+        tk = (type_key or '').lower()
+        for k, v in _PLAN_ACT_ICONS.items():
+            if k in tk:
+                return v
+        return '⚡'
+
+    def _plan_build_detail(act):
+        tk = (act.get('activityType', {}).get('typeKey') or '').lower()
+        km = round(act.get('distance', 0) / 1000.0, 1) if act.get('distance') else None
+        spd = act.get('averageSpeed', 0) or 0
+        pace = None
+        if spd > 0 and 'run' in tk:
+            ps = 1000 / spd
+            pace = f"{int(ps // 60)}:{int(ps % 60):02d}"
+        dur_sec = act.get('duration', 0) or 0
+        dur_min = int(dur_sec / 60) if dur_sec else None
+        name = (act.get('activityName') or tk.replace('_', ' ').title() or 'Actividad').strip()
+        return {'type_key': tk, 'icon': _plan_act_icon(tk), 'km': km,
+                'pace': pace, 'duration_min': dur_min, 'name': name}
+
+    if plan and current_week is not None:
+        try:
+            from datetime import timedelta as _td2
+            raw_data = _load_data(user_id) or {}
+            acts_by_date: dict = {}
+            for m_data in raw_data.get('months', {}).values():
+                for act in m_data.get('activities', []):
+                    d = (act.get('startTimeLocal') or '')[:10]
+                    if d:
+                        acts_by_date.setdefault(d, []).append(act)
+
+            plan_start = _date.fromisoformat(plan.get('plan_start_date', ''))
+            for week in plan.get('weeks', []):
+                w_num = week.get('week_number')
+                if not w_num:
+                    continue
+                week_start = plan_start + _td2(weeks=w_num - 1)
+                if week_start > today:
+                    continue  # future week — skip
+                day_map = {}
+                for w in week.get('workouts', []):
+                    day_name = (w.get('day_name') or '').lower().strip()
+                    offset = _PLAN_DAY_OFFSETS.get(day_name)
+                    if offset is None:
+                        continue
+                    day_date = week_start + _td2(days=offset)
+                    if day_date > today:
+                        continue
+                    raw_acts = acts_by_date.get(day_date.isoformat(), [])
+                    if not raw_acts:
+                        continue
+                    details = [_plan_build_detail(a) for a in raw_acts]
+                    planned_type = (w.get('type') or '').lower()
+                    run_acts = [d for d in details if 'run' in d['type_key']]
+                    strength_acts = [d for d in details if 'strength' in d['type_key']]
+                    if 'cross' in planned_type or 'strength' in planned_type:
+                        primary = (strength_acts or details)[0]
+                    elif run_acts:
+                        primary = run_acts[0]
+                    else:
+                        primary = details[0]
+                    planned_km = float(w.get('km') or 0)
+                    if planned_km > 0 and primary.get('km'):
+                        ratio = primary['km'] / planned_km
+                        status = 'green' if ratio >= 0.9 else ('yellow' if ratio >= 0.7 else 'red')
+                        actual_km = primary['km']
+                    elif primary.get('km'):
+                        actual_km = primary['km']
+                        status = 'white'
+                    else:
+                        actual_km = None
+                        status = 'green'  # strength/cross completed
+                    day_map[day_name] = {
+                        'actual_km': actual_km, 'status': status,
+                        'primary_act': primary, 'acts': details,
+                    }
+                if day_map:
+                    week_actuals[w_num] = day_map
+        except Exception:
+            pass
+
     is_premium = bool(user_doc.get('is_premium'))
     can_regenerate, next_regen_date = _get_regen_status(user_doc, session.get('timezone'))
 
@@ -1281,7 +1376,8 @@ def training_plan_view():
                            plan_stale=plan_stale,
                            can_regenerate=can_regenerate,
                            next_regen_date=next_regen_date,
-                           is_premium=is_premium)
+                           is_premium=is_premium,
+                           week_actuals=week_actuals)
 
 
 @dashboard_bp.route('/plan/status')

@@ -81,12 +81,12 @@
     .plan-title { font-size: 18px; }
   }
 
-  .workout-cell { border-radius: 10px; padding: 8px 6px; text-align: center; }
+  .workout-cell { border-radius: 10px; padding: 8px 6px; text-align: center; display: flex; flex-direction: column; }
   .workout-day-name { font-weight: 700; color: #6b7280; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
   .workout-icon { font-size: 18px; margin-bottom: 3px; }
   .workout-label { font-weight: 700; font-size: 11px; margin-bottom: 3px; }
   .workout-km { font-size: 11px; font-weight: 600; margin-bottom: 3px; opacity: 0.8; }
-  .workout-desc { font-size: 10px; color: #6b7280; line-height: 1.35; }
+  .workout-desc { font-size: 10px; color: #6b7280; line-height: 1.35; flex: 1; }
 
   .type-rest    { background: #f3f4f6; }
   .type-rest    .workout-label { color: #6b7280; }
@@ -257,13 +257,25 @@
     <div class="legend-item"><div class="legend-dot" style="background:#ede9fe"></div> {{ _('Cross / Fuerza') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#fef9c3"></div> {{ _('Carrera / Evento') }}</div>
   </div>
+  {% if week_actuals %}
+  <div class="legend" style="margin-top:-10px;">
+    <span style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;">{{ _('Realizado:') }}</span>
+    <div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:1px solid #16a34a"></div> ≥90%</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;border:1px solid #d97706"></div> 70–89%</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fee2e2;border:1px solid #dc2626"></div> &lt;70%</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f3f4f6;border:1px solid #9ca3af"></div> {{ _('Sin distancia') }}</div>
+  </div>
+  {% endif %}
 
   {% set workout_icons = {'rest': '😴', 'easy': '🏃', 'tempo': '⚡', 'intervals': '🔥', 'long': '🌿', 'cross': '💪', 'race': '🏁'} %}
+  {% set _status_colors = {'green': '#16a34a', 'yellow': '#d97706', 'red': '#dc2626', 'white': '#6b7280'} %}
+  {% set _status_bg = {'green': '#dcfce7', 'yellow': '#fef3c7', 'red': '#fee2e2', 'white': '#f3f4f6'} %}
 
   <!-- Weeks -->
   {% for week in plan.weeks %}
   {% set is_current = (current_week is not none and week.week_number == current_week) %}
   {% set is_past = (current_week is not none and week.week_number < current_week) %}
+  {% set w_actuals = week_actuals.get(week.week_number, {}) %}
   <div class="week-card{% if is_current %} current open{% elif not is_past %} open{% endif %}{% if is_past %} past{% endif %}" id="week-{{ week.week_number }}">
     <div class="week-header" onclick="toggleWeek({{ week.week_number }})">
       <div class="week-left">
@@ -285,13 +297,23 @@
     <div class="week-body">
       <div class="workouts-grid">
         {% for w in week.workouts %}
+        {% set day_key = (w.day_name or '').lower().strip() %}
+        {% set act = w_actuals.get(day_key) %}
         <div class="workout-cell type-{{ w.type }}">
           <div class="workout-day-name">{{ w.day_name[:3] if w.day_name else '' }}</div>
-          <div class="workout-icon">{{ workout_icons.get(w.type, '🏃') }}</div>
+          <div class="workout-icon">{% if act %}{{ act.primary_act.icon }}{% else %}{{ workout_icons.get(w.type, '🏃') }}{% endif %}</div>
           <div class="workout-label">{{ w.label }}</div>
           {% if w.km and w.km > 0 %}<div class="workout-km">{{ w.km }} km</div>{% endif %}
           {% if w.zone %}<div class="workout-km" style="color:#6b7280">{{ w.zone }}</div>{% endif %}
           <div class="workout-desc">{{ w.description }}</div>
+          {% if act %}
+          <div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(0,0,0,0.08);">
+            <span style="display:inline-block;background:{{ _status_bg.get(act.status, '#f3f4f6') }};color:{{ _status_colors.get(act.status, '#6b7280') }};border-radius:6px;padding:2px 6px;font-size:10px;font-weight:800;">
+              {% if act.actual_km %}{{ act.actual_km }} km{% else %}✓{% endif %}
+            </span>
+            {% if act.primary_act.pace %}<div style="font-size:9px;color:#9ca3af;margin-top:2px;">{{ act.primary_act.pace }} /km</div>{% endif %}
+          </div>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
