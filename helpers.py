@@ -27,8 +27,22 @@ def _merge_goal(user_goal: dict | None) -> dict:
     return base
 
 
+def is_goal_expired(training_goal: dict | None, today: date) -> bool:
+    """True when the goal's event already happened (event_date strictly before today)."""
+    if not training_goal:
+        return False
+    event_date_str = (training_goal.get('event_date') or '').strip()[:10]
+    if not event_date_str:
+        return False
+    try:
+        event_date = date.fromisoformat(event_date_str)
+    except ValueError:
+        return False
+    return event_date < today
+
+
 def process_dashboard_data(raw_data, training_goal: dict | None = None, user_tz: str | None = None):
-    """Processes raw garmin json data into flattened variables for Jinja."""
+    """Processes raw activity json data into flattened variables for Jinja."""
     if not raw_data or "months" not in raw_data or not raw_data["months"]:
         return None
 

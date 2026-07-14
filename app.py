@@ -8,7 +8,6 @@ from flask import Flask, redirect, render_template, url_for, session
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
-logging.getLogger("garminconnect").setLevel(logging.WARNING)
 
 from datetime import timedelta
 
@@ -89,13 +88,11 @@ app.register_blueprint(auth_bp)
 from routes.dashboard import dashboard_bp
 from routes.onboarding import onboarding_bp
 from routes.admin import admin_bp
-from routes.cron import cron_bp
 from routes.user import user_bp
 
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(onboarding_bp)
 app.register_blueprint(admin_bp)
-app.register_blueprint(cron_bp)
 app.register_blueprint(user_bp)
 
 

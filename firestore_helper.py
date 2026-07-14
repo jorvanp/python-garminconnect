@@ -1,13 +1,11 @@
 import logging
 import uuid as _uuid
-from datetime import date
+from datetime import timedelta as _td
 from google.cloud import firestore
 
 from tz_utils import now_cdmx, today_cdmx
 
 logger = logging.getLogger(__name__)
-
-MAX_REFRESH_TODAY_DEFAULT = 10
 
 _db = None
 
@@ -38,16 +36,6 @@ def get_all_users() -> list:
     return result
 
 
-def get_all_active_users() -> list:
-    docs = get_db().collection('users').where('garmin_connected', '==', True).stream()
-    result = []
-    for doc in docs:
-        user = doc.to_dict()
-        user['uid'] = doc.id
-        result.append(user)
-    return result
-
-
 def get_system_config() -> dict:
     try:
         doc = get_db().collection('system').document('config').get()
@@ -56,10 +44,6 @@ def get_system_config() -> dict:
     except Exception:
         pass
     return {}
-
-
-def get_max_refresh_today() -> int:
-    return get_system_config().get('max_refresh_today', MAX_REFRESH_TODAY_DEFAULT)
 
 
 def get_max_users() -> int:
@@ -78,30 +62,6 @@ def count_users() -> int:
         return len(docs)
     except Exception:
         return 0
-
-
-@firestore.transactional
-def _increment_refresh(transaction, user_ref, max_limit: int):
-    snapshot = user_ref.get(transaction=transaction)
-    if not snapshot.exists:
-        return False, 0
-
-    data = snapshot.to_dict()
-    today = today_cdmx().isoformat()
-    stored_date = data.get('last_refresh_today_date', '')
-    count = data.get('refresh_today_count', 0)
-
-    if stored_date != today:
-        count = 0
-
-    if count >= max_limit:
-        return False, count
-
-    transaction.update(user_ref, {
-        'last_refresh_today_date': today,
-        'refresh_today_count': count + 1,
-    })
-    return True, count + 1
 
 
 MAX_CHAT_MESSAGES = 100  # keep last 100 messages (~50 exchanges) per chat
@@ -150,18 +110,14 @@ def save_coaching_rules(rules: list):
 
 
 def get_app_config() -> dict:
-    """Returns global app config (garmin_enabled, etc.)."""
+    """Returns global app config."""
     try:
         doc = get_db().collection('system').document('app_config').get()
         if doc.exists:
             return doc.to_dict()
     except Exception:
         pass
-    return {'garmin_enabled': True}
-
-
-def save_app_config(config: dict):
-    get_db().collection('system').document('app_config').set(config)
+    return {}
 
 
 def get_global_sections() -> dict:
@@ -208,14 +164,6 @@ def clear_chat_history(uid: str, chat_type: str):
         )
     except Exception as e:
         logger.warning(f"Failed to clear chat history for {uid}/{chat_type}: {e}")
-
-
-def check_and_increment_refresh_today(uid: str) -> tuple:
-    db = get_db()
-    user_ref = db.collection('users').document(uid)
-    max_limit = get_max_refresh_today()
-    transaction = db.transaction()
-    return _increment_refresh(transaction, user_ref, max_limit)
 
 
 def save_weekly_summaries(uid: str, weeks: dict):
@@ -271,6 +219,45 @@ def get_assessment_history(uid: str) -> list:
     except Exception as e:
         logger.warning(f"Failed to get assessment history for {uid}: {e}")
     return []
+
+
+# ──────────────────────────────────────────────
+# Goal history (archived training goals)
+# ──────────────────────────────────────────────
+
+def archive_goal(uid: str, training_goal: dict, training_plan_schedule: dict | None, reason: str, summary: str = '') -> None:
+    """Snapshots the given goal + plan into users/{uid}/goal_history and clears the active goal."""
+    get_db().collection('users').document(uid).collection('goal_history').add({
+        'training_goal': training_goal,
+        'training_plan_schedule': training_plan_schedule,
+        'archive_reason': reason,
+        'summary': summary,
+        'archived_at': now_cdmx().isoformat(),
+    })
+    get_db().collection('users').document(uid).update({
+        'training_goal': firestore.DELETE_FIELD,
+        'training_plan_schedule': firestore.DELETE_FIELD,
+    })
+
+
+def get_goal_history(uid: str, max_days: int | None = None) -> list:
+    """Returns archived goals for a user, newest first. If max_days is set, only
+    returns entries archived within that many days (used to bound AI context)."""
+    try:
+        docs = get_db().collection('users').document(uid).collection('goal_history') \
+            .order_by('archived_at', direction=firestore.Query.DESCENDING).stream()
+        result = []
+        for doc in docs:
+            entry = doc.to_dict()
+            entry['id'] = doc.id
+            result.append(entry)
+        if max_days is not None:
+            cutoff = (today_cdmx() - _td(days=max_days)).isoformat()
+            result = [e for e in result if (e.get('archived_at') or '')[:10] >= cutoff]
+        return result
+    except Exception as e:
+        logger.warning(f"Failed to get goal history for {uid}: {e}")
+        return []
 
 
 def get_weekly_summaries(uid: str) -> dict:

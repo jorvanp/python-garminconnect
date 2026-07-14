@@ -1,5 +1,5 @@
 """
-Computes weekly training summaries from raw Garmin data.
+Computes weekly training summaries from raw activity data.
 These summaries are stored in Firestore and used as AI context
 instead of iterating raw activity lists.
 """
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def compute_weekly_summaries(raw_data: dict) -> dict:
     """
-    Computes weekly training summaries from raw Garmin data.
+    Computes weekly training summaries from raw activity data.
     Returns a dict keyed by ISO week (e.g. "2025-W10") with summary stats.
     """
     if not raw_data or "months" not in raw_data:

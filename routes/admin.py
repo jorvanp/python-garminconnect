@@ -49,29 +49,20 @@ def view_user(uid: str):
     data_blob = f"users/{uid}/{DATA_FILE}"
     raw_str = gcs.load_json(data_blob)
     training_goal = user.get('training_goal')
-    garmin_sync_disabled = user.get('garmin_sync_disabled', False)
 
     raw_data = json.loads(raw_str) if raw_str else None
     dashboard_data = process_dashboard_data(raw_data, training_goal=training_goal)
 
-    # For users without Garmin (CSV mode), build an empty skeleton instead of error page
+    # Users without any imported data yet: build an empty skeleton instead of error page
     if not dashboard_data:
-        if garmin_sync_disabled or not user.get('garmin_connected'):
-            _mk = today_cdmx().strftime('%Y-%m')
-            _empty = {'months': {_mk: {'activities': [], 'daily_stats': {}}}, 'metadata': {}, 'user_profile': {}}
-            dashboard_data = process_dashboard_data(_empty, training_goal=training_goal)
-        else:
-            email = user.get('email', uid)
-            name = user.get('display_name', email)
-            return render_template('admin_no_data.html', email=email, name=name, uid=uid), 202
+        _mk = today_cdmx().strftime('%Y-%m')
+        _empty = {'months': {_mk: {'activities': [], 'daily_stats': {}}}, 'metadata': {}, 'user_profile': {}}
+        dashboard_data = process_dashboard_data(_empty, training_goal=training_goal)
 
     dashboard_data['_admin_viewing'] = True
     dashboard_data['_admin_user_email'] = user.get('email', uid)
     dashboard_data['_viewed_uid'] = uid
-    dashboard_data['refresh_count'] = 0
-    dashboard_data['max_refresh'] = 0
     dashboard_data['last_refresh'] = user.get('last_refresh', '')
-    dashboard_data['garmin_sync_disabled'] = garmin_sync_disabled
 
     from routes.dashboard import _add_sections, _add_race_hero
     _add_race_hero(dashboard_data, user, None)
@@ -153,56 +144,6 @@ def view_user_plan(uid: str):
                            _viewed_uid=uid)
 
 
-@admin_bp.route('/user/<uid>/refresh', methods=['POST'])
-@admin_required
-def force_refresh(uid: str):
-    """Incremental refresh: current month only."""
-    from garmin_onboarding import is_refreshing
-    if is_refreshing(uid):
-        return jsonify({"error": "Ya hay una recarga en progreso para este usuario."}), 409
-
-    user = firestore_helper.get_user(uid)
-    if not user:
-        abort(404)
-
-    from routes.dashboard import do_refresh
-    user_name = user.get('display_name', 'Atleta').split()[0]
-    training_goal = user.get('training_goal')
-    response, status_code = do_refresh(uid, user_name=user_name, training_goal=training_goal)
-    return response, status_code
-
-
-@admin_bp.route('/user/<uid>/refresh/full', methods=['POST'])
-@admin_required
-def force_refresh_full(uid: str):
-    """Full historical refresh: re-fetches last 2 months (async background thread)."""
-    user = firestore_helper.get_user(uid)
-    if not user:
-        abort(404)
-    if not user.get('garmin_connected'):
-        return jsonify({"error": "Usuario sin Garmin conectado."}), 400
-
-    from garmin_onboarding import fetch_initial_data_async
-    gcs = GCSHelper(BUCKET_NAME)
-    fetch_initial_data_async(uid, gcs, firestore_helper)
-    logger.info(f"Admin triggered full refresh for {uid}")
-    return jsonify({"status": "started"})
-
-
-@admin_bp.route('/user/<uid>/request-reconnect', methods=['POST'])
-@admin_required
-def request_reconnect(uid: str):
-    """Flag user to re-enter Garmin credentials on next login (e.g. after persistent 429)."""
-    user = firestore_helper.get_user(uid)
-    if not user:
-        abort(404)
-    gcs = GCSHelper(BUCKET_NAME)
-    deleted = gcs.delete_directory(f"users/{uid}/tokens/")
-    firestore_helper.upsert_user(uid, {'needs_garmin_reconnect': True})
-    logger.info(f"Admin flagged {uid} for Garmin reconnect, deleted {deleted} token blobs.")
-    return jsonify({"status": "flagged", "tokens_deleted": deleted})
-
-
 @admin_bp.route('/user/<uid>/toggle-premium', methods=['POST'])
 @admin_required
 def toggle_premium(uid: str):
@@ -213,20 +154,6 @@ def toggle_premium(uid: str):
     firestore_helper.upsert_user(uid, {'is_premium': new_val})
     logger.info(f"Admin set is_premium={new_val} for {uid}")
     return jsonify({"status": "ok", "is_premium": new_val})
-
-
-@admin_bp.route('/user/<uid>/toggle-garmin-sync', methods=['POST'])
-@admin_required
-def toggle_garmin_sync(uid: str):
-    """Enable or disable Garmin sync for a user. When disabled, no Garmin API calls are made."""
-    user = firestore_helper.get_user(uid)
-    if not user:
-        abort(404)
-    current = user.get('garmin_sync_disabled', False)
-    new_val = not current
-    firestore_helper.upsert_user(uid, {'garmin_sync_disabled': new_val})
-    logger.info(f"Admin {'disabled' if new_val else 'enabled'} Garmin sync for {uid}")
-    return jsonify({"status": "ok", "garmin_sync_disabled": new_val})
 
 
 SECTIONS = {
@@ -259,17 +186,6 @@ def set_max_users():
     firestore_helper.set_max_users(value)
     logger.info(f"Admin updated max_users to {value}")
     return jsonify({"status": "ok", "max_users": value})
-
-
-@admin_bp.route('/app-config/toggle-garmin', methods=['POST'])
-@admin_required
-def toggle_garmin():
-    config = firestore_helper.get_app_config()
-    new_val = not config.get('garmin_enabled', True)
-    config['garmin_enabled'] = new_val
-    firestore_helper.save_app_config(config)
-    logger.info(f"Admin {'enabled' if new_val else 'disabled'} Garmin globally")
-    return jsonify({"status": "ok", "garmin_enabled": new_val})
 
 
 @admin_bp.route('/sections', methods=['GET'])
@@ -542,16 +458,17 @@ def recompute_summaries(uid: str):
 @admin_bp.route('/weekly-summaries')
 @admin_required
 def weekly_summaries_view():
-    """Shows weekly training summaries for all connected users."""
+    """Shows weekly training summaries for all users with imported data."""
     users = firestore_helper.get_all_users()
-    connected = [u for u in users if u.get('garmin_connected')]
 
     NUM_WEEKS = 10  # last N weeks to display
 
     user_data = []
-    for u in sorted(connected, key=lambda x: (x.get('display_name') or x.get('email') or '')):
+    for u in sorted(users, key=lambda x: (x.get('display_name') or x.get('email') or '')):
         uid = u.get('uid')
-        weeks_dict = firestore_helper.get_weekly_summaries(uid)
+        weeks_dict = firestore_helper.get_weekly_summaries(uid) if uid else {}
+        if not weeks_dict:
+            continue
         sorted_keys = sorted(weeks_dict.keys(), reverse=True)[:NUM_WEEKS]
         sorted_keys.reverse()
         weeks = [weeks_dict[k] for k in sorted_keys]
@@ -563,26 +480,3 @@ def weekly_summaries_view():
         })
 
     return render_template('admin_weekly_summaries.html', user_data=user_data, num_weeks=NUM_WEEKS)
-
-
-@admin_bp.route('/user/<uid>/refresh/full/status')
-@admin_required
-def full_refresh_status(uid: str):
-    from garmin_onboarding import get_fetch_progress, is_refreshing
-    progress = get_fetch_progress(uid)
-    progress['running'] = is_refreshing(uid)
-    return jsonify(progress)
-
-
-@admin_bp.route('/refresh/status-all')
-@admin_required
-def refresh_status_all():
-    """Returns refresh status for all users currently refreshing."""
-    from garmin_onboarding import get_fetch_progress, is_refreshing
-    users = firestore_helper.get_all_users()
-    result = {}
-    for u in users:
-        uid = u.get('uid')
-        if uid and is_refreshing(uid):
-            result[uid] = get_fetch_progress(uid)
-    return jsonify(result)

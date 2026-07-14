@@ -6,14 +6,16 @@ Key scenarios covered:
   admin.py view_user when calling dashboard_data['_admin_viewing'] = True on None)
 - _merge_goal fills all required keys even with None or partial input
 - Valid minimal raw_data produces a complete dashboard_data dict
-- New users (garmin_sync_disabled, no data) can open goal setup and chat with Sento:
+- New users (no data imported yet) can open goal setup and chat with Sento:
   - goal_setup_view no longer redirects when raw_data is None (fixed: no redirect guard)
   - goal_setup_chat receives {"months":{}} fallback instead of returning 404
   - goal_setup_chat with empty raw_data must not raise KeyError/AttributeError
 """
+from datetime import date
+
 import pytest
 
-from helpers import DEFAULT_GOAL, _merge_goal, process_dashboard_data
+from helpers import DEFAULT_GOAL, _merge_goal, is_goal_expired, process_dashboard_data
 
 # ---------------------------------------------------------------------------
 # Minimal fixture raw_data
@@ -56,6 +58,27 @@ class TestMergeGoal:
         goal = _merge_goal({"easy_hr_max": None})
         assert goal["easy_hr_max"] == DEFAULT_GOAL["easy_hr_max"]
 
+class TestIsGoalExpired:
+    def test_none_goal_not_expired(self):
+        assert is_goal_expired(None, date(2026, 7, 14)) is False
+
+    def test_no_event_date_not_expired(self):
+        assert is_goal_expired({"race_type": "10K"}, date(2026, 7, 14)) is False
+
+    def test_future_event_not_expired(self):
+        assert is_goal_expired({"event_date": "2026-08-01"}, date(2026, 7, 14)) is False
+
+    def test_today_event_not_expired(self):
+        assert is_goal_expired({"event_date": "2026-07-14"}, date(2026, 7, 14)) is False
+
+    def test_past_event_expired(self):
+        assert is_goal_expired({"event_date": "2026-07-13"}, date(2026, 7, 14)) is True
+
+    def test_invalid_event_date_not_expired(self):
+        assert is_goal_expired({"event_date": "not-a-date"}, date(2026, 7, 14)) is False
+
+
+class TestFullGoalPreserved:
     def test_full_goal_preserved(self):
         custom = {
             "race_type": "10K",
@@ -162,12 +185,12 @@ class TestProcessDashboardDataValid:
 
 
 # ---------------------------------------------------------------------------
-# New-user scenarios (no Garmin data, no training goal)
+# New-user scenarios (no imported data, no training goal)
 # ---------------------------------------------------------------------------
 
 class TestNewUserScenarios:
     def test_new_user_no_data_no_goal(self):
-        """New user with garmin_sync_disabled and no data must not crash dashboard."""
+        """New user with no data imported yet must not crash dashboard."""
         result = process_dashboard_data(None, training_goal=None)
         assert result is None  # route handles None gracefully with empty skeleton
 
@@ -208,9 +231,9 @@ class TestNewUserScenarios:
 
 
 # ---------------------------------------------------------------------------
-# Regression: goal_setup/chat fallback for users with no Garmin data
+# Regression: goal_setup/chat fallback for users with no imported data
 # Reproduces the "❌ No hay datos disponibles." bug where new users
-# (garmin_sync_disabled=True) could not chat with Sento to set up a goal.
+# (no CSV imported yet) could not chat with Sento to set up a goal.
 # Fix: route now passes {"months":{}, "metadata":{}} instead of returning 404.
 # ---------------------------------------------------------------------------
 

@@ -2,6 +2,9 @@
 your_data/
 pdm.lock
 garth/
+training_data.json
+training_data_monthly.json
+Activities*.csv
 
 # Virtual environments
 .venv/

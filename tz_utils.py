@@ -1,5 +1,5 @@
 """
-Timezone utilities for the Garmin Dashboard application.
+Timezone utilities for the Sento Run application.
 Cloud Run defaults to UTC, so all date/time operations must explicitly
 specify a timezone.
 

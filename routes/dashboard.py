@@ -5,8 +5,6 @@ import io
 import json
 import logging
 import os
-import shutil
-import tempfile
 import threading
 from functools import wraps
 
@@ -31,8 +29,6 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
             return redirect(url_for('auth.login'))
-        if not session.get('garmin_connected'):
-            return redirect(url_for('onboarding.warning'))
         return f(*args, **kwargs)
     return decorated
 
@@ -58,6 +54,29 @@ def _save_data(user_id: str, data: dict):
 def _get_goal(user_id: str) -> dict | None:
     user_doc = firestore_helper.get_user(user_id) or {}
     return user_doc.get('training_goal')
+
+
+def _archive_expired_goal_if_needed(user_id: str, user_doc: dict, user_tz: str | None) -> dict:
+    """If the user's active goal's event date already passed, archives it (goal_history)
+    and clears it from the active fields. Returns the user_doc with the goal removed so
+    callers see the update immediately without a second Firestore read."""
+    from helpers import is_goal_expired
+    goal = user_doc.get('training_goal')
+    if not goal or not is_goal_expired(goal, today_tz(user_tz)):
+        return user_doc
+    from ai_advisor import summarize_archived_goal
+    plan_schedule = user_doc.get('training_plan_schedule')
+    try:
+        summary = summarize_archived_goal(goal, plan_schedule)
+    except Exception as e:
+        logger.warning(f"summarize_archived_goal failed for {user_id}: {e}")
+        summary = goal.get('race_type', 'objetivo')
+    firestore_helper.archive_goal(user_id, goal, plan_schedule, reason='event_passed', summary=summary)
+    logger.info(f"Archived expired goal for {user_id}: {goal.get('race_type')} ({goal.get('event_date')})")
+    new_doc = dict(user_doc)
+    new_doc.pop('training_goal', None)
+    new_doc.pop('training_plan_schedule', None)
+    return new_doc
 
 
 def _get_training_plan(user_id: str) -> dict | None:
@@ -179,123 +198,6 @@ def _parse_csv_row(row: dict) -> dict | None:
         'steps': int(_num(row.get('Pasos', '')) or 0),
         'source': 'csv_import',
     }
-
-
-def _recompute_summaries_only(user_id: str):
-    """Recomputes weekly summaries from existing stored data — no Garmin API, no AI call."""
-    from garmin_onboarding import refresh_start, refresh_done, refresh_error
-    refresh_start(user_id, "Procesando actividades importadas...", "day")
-    try:
-        raw_data = _load_data(user_id)
-        if not raw_data:
-            refresh_error(user_id, "No hay datos disponibles.")
-            return
-        try:
-            from weekly_summarizer import compute_weekly_summaries
-            summaries = compute_weekly_summaries(raw_data)
-            firestore_helper.save_weekly_summaries(user_id, summaries)
-        except Exception as e:
-            logger.error(f"Weekly summary error in _recompute_summaries_only for {user_id}: {e}")
-        refresh_done(user_id, "Actividades cargadas.")
-    except Exception as e:
-        refresh_error(user_id, f"Error: {str(e)}")
-        logger.error(f"Recompute summaries failed for {user_id}: {e}")
-
-
-def do_refresh(user_id: str, user_name: str = "Atleta", training_goal: dict | None = None) -> tuple:
-    """
-    Core refresh logic: fetches current month from Garmin, generates AI recommendation,
-    saves to GCS and Firestore. Returns a Flask response tuple.
-    Extracted here so both /refresh-today and the admin force-refresh can call it.
-    """
-    from export_data import init_api, fetch_data_current_month
-
-    tmp_dir = tempfile.mkdtemp()
-    try:
-        gcs = _gcs()
-        token_prefix = f"users/{user_id}/tokens/"
-        gcs.download_directory(token_prefix, tmp_dir)
-
-        api = init_api(token_dir=tmp_dir)
-        if not api:
-            return jsonify({"error": "No se pudo conectar a Garmin. El token puede haber expirado."}), 500
-
-        gcs.upload_directory(tmp_dir, token_prefix)
-
-        existing_data = _load_data(user_id)
-        new_data = fetch_data_current_month(api, existing_data)
-
-        try:
-            from weekly_summarizer import compute_weekly_summaries
-            summaries = compute_weekly_summaries(new_data)
-            firestore_helper.save_weekly_summaries(user_id, summaries)
-        except Exception as e:
-            logger.error(f"Weekly summary error during refresh for {user_id}: {e}")
-
-        _save_data(user_id, new_data)
-        firestore_helper.upsert_user(user_id, {'last_refresh': now_cdmx().isoformat()})
-        return jsonify({"status": "success", "message": "Datos actualizados."}), 200
-
-    except Exception as e:
-        logger.error(f"Refresh error for {user_id}: {e}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
-
-def _count_today_activities(data: dict | None, today_str: str) -> int:
-    """Returns the number of activities logged today in the given data dict."""
-    if not data:
-        return 0
-    month_key = today_str[:7]
-    acts = data.get("months", {}).get(month_key, {}).get("activities", [])
-    return sum(1 for a in acts if a.get("startTimeLocal", "")[:10] == today_str)
-
-
-def _refresh_background(user_id: str, user_name: str, wait_before_start: int = 0):
-    """Runs a Garmin incremental refresh in a background thread (no Flask context needed)."""
-    from garmin_onboarding import is_refreshing, refresh_start, refresh_progress, refresh_done, refresh_error
-    if is_refreshing(user_id):
-        logger.info(f"Auto-refresh skipped for {user_id}: already running.")
-        return
-    if wait_before_start:
-        import time as _time
-        logger.info(f"Auto-restart: waiting {wait_before_start}s before Garmin call for {user_id}")
-        _time.sleep(wait_before_start)
-    from export_data import init_api, fetch_data_current_month
-    tmp_dir = tempfile.mkdtemp()
-    refresh_start(user_id, "Actualizando datos del día...", "day")
-    try:
-        gcs = _gcs()
-        token_prefix = f"users/{user_id}/tokens/"
-        gcs.download_directory(token_prefix, tmp_dir)
-        api = init_api(token_dir=tmp_dir)
-        if not api:
-            gcs.delete_directory(token_prefix)
-            firestore_helper.upsert_user(user_id, {'needs_garmin_reconnect': True})
-            refresh_error(user_id, "No se pudo conectar con Garmin. Por favor reconecta tu cuenta.")
-            logger.warning(f"Auto-refresh: persistent 429 for {user_id} — flagged for reconnect.")
-            return
-        gcs.upload_directory(tmp_dir, token_prefix)
-        refresh_progress(user_id, 40, "Descargando datos del día...")
-        existing_data = _load_data(user_id)
-        new_data = fetch_data_current_month(api, existing_data)
-        refresh_progress(user_id, 80, "Calculando resúmenes semanales...")
-        try:
-            from weekly_summarizer import compute_weekly_summaries
-            summaries = compute_weekly_summaries(new_data)
-            firestore_helper.save_weekly_summaries(user_id, summaries)
-        except Exception as e:
-            logger.error(f"Weekly summary error during auto-refresh for {user_id}: {e}")
-        _save_data(user_id, new_data)
-        firestore_helper.upsert_user(user_id, {'last_refresh': now_cdmx().isoformat()})
-        refresh_done(user_id, "Datos del día actualizados.")
-        logger.info(f"Auto-refresh completed for {user_id}")
-    except Exception as e:
-        refresh_error(user_id, f"Error: {str(e)}")
-        logger.error(f"Auto-refresh failed for {user_id}: {e}")
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def _add_sections(dashboard_data: dict, user_doc: dict = None) -> dict:
@@ -552,148 +454,38 @@ def index():
             session['has_profile_assessment'] = True
         else:
             return redirect(url_for('onboarding.profile_setup'))
-    if not session.get('garmin_connected'):
-        return redirect(url_for('onboarding.warning'))
-    from garmin_onboarding import is_refreshing, refresh_pending
     user_id = session['user_id']
-    user_name = session.get('display_name', 'Atleta').split()[0]
 
-    # Check Firestore flags
     user_doc_pre = firestore_helper.get_user(user_id) or {}
-    needs_reconnect = user_doc_pre.get('needs_garmin_reconnect', False)
-    garmin_sync_disabled = user_doc_pre.get('garmin_sync_disabled', False)
+    user_doc_pre = _archive_expired_goal_if_needed(user_id, user_doc_pre, session.get('timezone'))
 
-    # Always refresh on a fresh login; also wait if a refresh is already running
-    login_refresh = session.pop('needs_login_refresh', False)
     raw_data = _load_data(user_id)
     has_data = bool(raw_data)
-    # ?cached=1 allows skipping the refresh when Garmin is unreachable but user has data
-    view_cached = request.args.get('cached') == '1' and has_data
-
-    # If Garmin sync is disabled by admin, show dashboard with CSV import banner (no Garmin call)
-    if garmin_sync_disabled:
-        session.pop('needs_login_refresh', None)
-        # If an AI regen is running (e.g. triggered by CSV import), show loading screen
-        if is_refreshing(user_id):
-            return render_template('dashboard_loading.html', user_name=user_name)
-        if has_data:
-            goal = user_doc_pre.get('training_goal')
-            user_tz = session.get('timezone')
-            dashboard_data = process_dashboard_data(raw_data, training_goal=goal, user_tz=user_tz)
-            if dashboard_data:
-                dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
-                dashboard_data['garmin_sync_disabled'] = True
-                _add_race_hero(dashboard_data, user_doc_pre, user_tz)
-                _add_sections(dashboard_data, user_doc_pre)
-                return render_template('fitness_report.html', **dashboard_data)
-        # No data at all + sync disabled → render with minimal skeleton so all template vars exist
-        user_tz = session.get('timezone')
-        _today = today_tz(user_tz)
-        _mk = _today.strftime('%Y-%m')
-        _empty_raw = {'months': {_mk: {'activities': [], 'daily_stats': {}}}, 'metadata': {}, 'user_profile': {}}
-        dashboard_data = process_dashboard_data(_empty_raw, training_goal=None, user_tz=user_tz)
-        dashboard_data['last_refresh'] = ''
-        dashboard_data['garmin_sync_disabled'] = True
-        _add_race_hero(dashboard_data, user_doc_pre, user_tz)
-        _add_sections(dashboard_data, user_doc_pre)
-        return render_template('fitness_report.html', **dashboard_data)
-
-    # If reconnect is needed but user has cached data, show dashboard with a warning banner
-    if needs_reconnect and has_data:
-        session.pop('needs_login_refresh', None)
-        goal = user_doc_pre.get('training_goal')
-        user_tz = session.get('timezone')
-        dashboard_data = process_dashboard_data(raw_data, training_goal=goal, user_tz=user_tz)
-        if dashboard_data:
-            dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
-            dashboard_data['garmin_reconnect_needed'] = True
-            _add_race_hero(dashboard_data, user_doc_pre, user_tz)
-            _add_sections(dashboard_data, user_doc_pre)
-            return render_template('fitness_report.html', **dashboard_data)
-
-    # If reconnect is needed and there's no data at all, go to onboarding
-    if needs_reconnect and not has_data:
-        session.pop('garmin_connected', None)
-        return redirect(url_for('onboarding.warning'))
-
-    if not view_cached and (login_refresh or not has_data or is_refreshing(user_id)):
-        if not is_refreshing(user_id):
-            # Reset pct BEFORE thread starts so status endpoint won't see stale pct=100
-            refresh_pending(user_id)
-            threading.Thread(target=_refresh_background, args=(user_id, user_name), daemon=True).start()
-        return render_template('dashboard_loading.html', user_name=user_name)
 
     goal = user_doc_pre.get('training_goal')
     user_tz = session.get('timezone')
-    dashboard_data = process_dashboard_data(raw_data, training_goal=goal, user_tz=user_tz)
+    if has_data:
+        dashboard_data = process_dashboard_data(raw_data, training_goal=goal, user_tz=user_tz)
+    else:
+        dashboard_data = None
     if not dashboard_data:
-        # months dict is empty (fetch in progress or incomplete) — show loading screen
-        return render_template('dashboard_loading.html', user_name=user_name)
-    dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
+        # No data imported yet — render an empty skeleton with the CSV upload CTA.
+        _mk = today_tz(user_tz).strftime('%Y-%m')
+        _empty_raw = {'months': {_mk: {'activities': [], 'daily_stats': {}}}, 'metadata': {}, 'user_profile': {}}
+        dashboard_data = process_dashboard_data(_empty_raw, training_goal=None, user_tz=user_tz)
+        dashboard_data['last_refresh'] = ''
+    else:
+        dashboard_data['last_refresh'] = user_doc_pre.get('last_refresh', '')
     _add_race_hero(dashboard_data, user_doc_pre, user_tz)
     _add_sections(dashboard_data, user_doc_pre)
     return render_template('fitness_report.html', **dashboard_data)
 
 
-@dashboard_bp.route('/prescription/status')
-@login_required
-def prescription_status():
-    """Polls refresh progress and whether today's data is ready."""
-    from garmin_onboarding import is_refreshing, get_fetch_progress, refresh_pending
-    user_id = session['user_id']
-    refreshing = is_refreshing(user_id)
-    progress = get_fetch_progress(user_id)
-    pct = progress.get("pct", 0)
-
-    # pct==0 means the instance restarted and lost in-memory state mid-refresh.
-    # Restart the background thread automatically so the user isn't stuck forever.
-    if not refreshing and pct == 0:
-        user_name = session.get('display_name', 'Atleta').split()[0]
-        user_doc = firestore_helper.get_user(user_id) or {}
-        refresh_pending(user_id)
-        if user_doc.get('garmin_sync_disabled'):
-            threading.Thread(target=_recompute_summaries_only, args=(user_id,), daemon=True).start()
-        else:
-            # Wait 15s before calling Garmin — gives the previous instance time to die
-            # and avoids the simultaneous-call 429 that happens during rolling deploys.
-            threading.Thread(target=_refresh_background,
-                             args=(user_id, user_name),
-                             kwargs={'wait_before_start': 15},
-                             daemon=True).start()
-        return jsonify({"ready": False, "refreshing": True, "pct": 1,
-                        "msg": "Reconectando tras reinicio del servidor…"})
-
-    # ready=True when thread finished (pct==100) AND user has data
-    ready = False
-    if not refreshing and pct == 100:
-        raw_data = _load_data(user_id)
-        ready = bool(raw_data)
-
-    # Include needs_reconnect and garmin_blocked flags for the loading screen
-    needs_reconnect = False
-    garmin_blocked = False
-    if pct == -1:
-        user_doc = firestore_helper.get_user(user_id) or {}
-        needs_reconnect = bool(user_doc.get('needs_garmin_reconnect'))
-        garmin_blocked = bool(progress.get("garmin_blocked") or user_doc.get('garmin_sync_disabled'))
-
-    return jsonify({
-        "ready": ready,
-        "refreshing": refreshing,
-        "pct": pct,
-        "msg": progress.get("msg", "Actualizando datos…"),
-        "needs_reconnect": needs_reconnect,
-        "garmin_blocked": garmin_blocked,
-    })
-
-
 @dashboard_bp.route('/upload-activities', methods=['POST'])
 @login_required
 def upload_activities():
-    """Accepts a Garmin CSV export, merges activities into stored data, triggers AI regen."""
-    from garmin_onboarding import refresh_pending
+    """Accepts a Garmin Connect CSV export, merges activities into stored data, recomputes summaries."""
     user_id = session['user_id']
-    user_name = session.get('display_name', 'Atleta').split()[0]
 
     if 'file' not in request.files:
         return jsonify({'error': 'No se recibió archivo'}), 400
@@ -737,6 +529,7 @@ def upload_activities():
 
     existing_data.setdefault('metadata', {})
     _save_data(user_id, existing_data)
+    firestore_helper.upsert_user(user_id, {'last_refresh': now_cdmx().isoformat()})
     try:
         from weekly_summarizer import compute_weekly_summaries
         firestore_helper.save_weekly_summaries(user_id, compute_weekly_summaries(existing_data))
@@ -752,36 +545,6 @@ def upload_activities():
     else:
         msg = 'Actividades ya cargadas (sin cambios).'
     return jsonify({'added': added, 'updated': updated, 'message': msg, 'redirect': '/'})
-
-
-@dashboard_bp.route('/garmin-reconnect')
-def garmin_reconnect():
-    """Clears Garmin session state and redirects to onboarding so user can re-enter credentials."""
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
-    session.pop('garmin_connected', None)
-    session.pop('needs_login_refresh', None)
-    return redirect(url_for('onboarding.warning'))
-
-
-@dashboard_bp.route('/refresh-today')
-@login_required
-def refresh_today():
-    user_id = session['user_id']
-
-    allowed, count = firestore_helper.check_and_increment_refresh_today(user_id)
-    max_limit = firestore_helper.get_max_refresh_today()
-
-    if not allowed:
-        return jsonify({
-            "error": f"Límite de {max_limit} recargas diarias alcanzado. Intenta mañana.",
-            "limit": max_limit,
-            "used": count,
-        }), 429
-
-    user_name = session.get('display_name', 'Atleta').split()[0]
-    goal = _get_goal(user_id)
-    return do_refresh(user_id, user_name=user_name, training_goal=goal)
 
 
 @dashboard_bp.route('/goal', methods=['POST'])
@@ -885,6 +648,23 @@ def save_goal():
         "plan_start_date": plan_start_date,
     }
 
+    # If the athlete already had a goal for a *different* event, it's being replaced —
+    # archive the old goal (and whatever plan was generated for it) before overwriting.
+    # A missing/matching event_date means this is just an edit of the same objective.
+    existing_user_doc = firestore_helper.get_user(user_id) or {}
+    old_goal = existing_user_doc.get('training_goal')
+    old_event_date = (old_goal or {}).get('event_date', '')
+    if old_goal and old_event_date and old_event_date != event_date_str:
+        from ai_advisor import summarize_archived_goal
+        old_plan_schedule = existing_user_doc.get('training_plan_schedule')
+        try:
+            old_summary = summarize_archived_goal(old_goal, old_plan_schedule)
+        except Exception as e:
+            logger.warning(f"summarize_archived_goal failed for {user_id}: {e}")
+            old_summary = old_goal.get('race_type', 'objetivo')
+        firestore_helper.archive_goal(user_id, old_goal, old_plan_schedule, reason='replaced', summary=old_summary)
+        logger.info(f"Archived replaced goal for {user_id}: {old_goal.get('race_type')} ({old_event_date})")
+
     firestore_helper.upsert_user(user_id, {'training_goal': goal})
     logger.info(f"Goal saved for {user_id}: {goal}")
 
@@ -949,6 +729,14 @@ def join_race():
 
     logger.info(f"User {user_id} joined race {race_id} (create_new={create_new})")
     return jsonify({"status": "ok", "race_id": race_id})
+
+
+@dashboard_bp.route('/goals/history')
+@login_required
+def goal_history_view():
+    user_id = session['user_id']
+    history = firestore_helper.get_goal_history(user_id)
+    return render_template('goal_history.html', history=history)
 
 
 @dashboard_bp.route('/feedback', methods=['POST'])
@@ -1076,7 +864,8 @@ def goal_setup_chat_route():
         today_str = today_tz(session.get('timezone')).isoformat()
         all_races = firestore_helper.get_all_races()
         upcoming_races = [r for r in all_races if r.get('event_date', '') >= today_str]
-        result = goal_setup_chat(message, history, raw_data, user_name=user_name, coaching_rules=coaching_rules, weekly_summaries=weekly_summaries, user_tz=session.get('timezone'), user_profile=user_profile, upcoming_races=upcoming_races)
+        goal_history = firestore_helper.get_goal_history(user_id, max_days=90)
+        result = goal_setup_chat(message, history, raw_data, user_name=user_name, coaching_rules=coaching_rules, weekly_summaries=weekly_summaries, user_tz=session.get('timezone'), user_profile=user_profile, upcoming_races=upcoming_races, goal_history=goal_history)
 
         # When Sento just produced a goal_draft with event_date + race_type,
         # look up existing races so the frontend can ask inline (not via modal).
@@ -1215,11 +1004,8 @@ def ask_ai():
         return jsonify({"error": "La pregunta no puede superar los 500 caracteres."}), 400
 
     raw_data = _load_data(user_id)
-    # Users with garmin_sync_disabled and no CSV imported yet still get Sento chat
+    # Users with no CSV imported yet still get Sento chat (empty data skeleton)
     if not raw_data:
-        user_doc = firestore_helper.get_user(user_id) or {}
-        if not user_doc.get('garmin_sync_disabled'):
-            return jsonify({"error": "No hay datos disponibles. Recarga primero."}), 404
         from tz_utils import today_tz
         _mk = today_tz(session.get('timezone')).strftime('%Y-%m')
         raw_data = {"months": {_mk: {"activities": [], "daily_stats": {}}}, "metadata": {}, "user_profile": {}}
@@ -1232,9 +1018,10 @@ def ask_ai():
         weekly_summaries = firestore_helper.get_weekly_summaries(user_id)
         user_doc_chat = firestore_helper.get_user(user_id) or {}
         plan_schedule = user_doc_chat.get('training_plan_schedule')
+        goal_history = firestore_helper.get_goal_history(user_id, max_days=90)
         dashboard_data = process_dashboard_data(raw_data, training_goal=goal)
         user_name = session.get('display_name', 'Atleta').split()[0]
-        answer = ask_ai_with_context(question, dashboard_data, raw_data, history=history, user_name=user_name, training_goal=goal, coaching_rules=coaching_rules, training_plan=t_plan, weekly_summaries=weekly_summaries, user_tz=session.get('timezone'), training_plan_schedule=plan_schedule)
+        answer = ask_ai_with_context(question, dashboard_data, raw_data, history=history, user_name=user_name, training_goal=goal, coaching_rules=coaching_rules, training_plan=t_plan, weekly_summaries=weekly_summaries, user_tz=session.get('timezone'), training_plan_schedule=plan_schedule, goal_history=goal_history)
 
         updated = list(history) + [
             {"role": "user", "content": question},
@@ -1248,7 +1035,7 @@ def ask_ai():
         return jsonify({"error": str(e)}), 500
 
 
-# In-memory tracking for async plan generation (similar to garmin_onboarding.py)
+# In-memory tracking for async plan generation
 _plan_generating: set = set()
 _plan_error: dict = {}  # uid → error message
 

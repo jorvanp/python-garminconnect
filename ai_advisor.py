@@ -133,6 +133,60 @@ def _format_plan_schedule(plan_schedule: dict | None, user_tz: str | None = None
         return ""
 
 
+def summarize_archived_goal(training_goal: dict, training_plan_schedule: dict | None = None) -> str:
+    """Generates a short (2-3 line) summary of a goal being archived, for later use as
+    lightweight context in Sento's prompts. Falls back to a plain-text summary built
+    from the goal fields if Gemini is unavailable or fails, so archiving never blocks
+    on this call."""
+    race_type = training_goal.get('race_type', 'objetivo')
+    event_date = training_goal.get('event_date', '')
+    sport = training_goal.get('sport', 'run')
+    fallback = f"{race_type} ({event_date})".strip() if event_date else race_type
+
+    client = _get_client()
+    if not client:
+        return fallback
+    try:
+        weeks_done = 0
+        if training_plan_schedule:
+            weeks_done = training_plan_schedule.get('total_weeks', 0)
+        prompt = f"""Resume en máximo 3 líneas este objetivo de entrenamiento ya finalizado, para usarlo como
+contexto breve en futuras conversaciones con el atleta. No uses términos técnicos ni menciones JSON/datos.
+
+Deporte: {sport}
+Evento: {race_type}
+Fecha del evento: {event_date}
+Descripción: {training_goal.get('description', '')}
+Ritmo/potencia meta: {training_goal.get('target_pace_str') or training_goal.get('ftp', '')}
+Plan generado: {weeks_done} semanas
+
+Responde solo con el resumen, sin encabezados."""
+        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        text = (response.text or '').strip()
+        return text or fallback
+    except Exception as e:
+        logger.warning(f"summarize_archived_goal fallback (Gemini error): {e}")
+        return fallback
+
+
+def _format_goal_history(goal_history: list | None) -> str:
+    """Formats archived goals (already filtered to a recency window by the caller) as a
+    short prompt section giving Sento context on the athlete's past objectives."""
+    if not goal_history:
+        return ""
+    lines = []
+    for entry in goal_history:
+        summary = entry.get('summary') or ''
+        archived_at = (entry.get('archived_at') or '')[:10]
+        reason = entry.get('archive_reason', '')
+        reason_str = 'evento cumplido' if reason == 'event_passed' else 'reemplazado por nuevo objetivo'
+        if summary:
+            lines.append(f"  • (archivado {archived_at}, {reason_str}) {summary}")
+    if not lines:
+        return ""
+    return "\n=== OBJETIVOS ANTERIORES RECIENTES (últimos 90 días) ===\n" + "\n".join(lines) + "\n"
+
+
 def generate_daily_recommendation(dashboard_data, user_name="Atleta", training_goal=None, coaching_rules=None, training_plan=None, user_tz=None, raw_data=None, weekly_summaries=None):
     """
     Takes the processed stats from helpers.py and asks Gemini to generate
@@ -414,7 +468,7 @@ def _format_profile_for_ai(profile: dict | None) -> str:
     return "\n".join(lines) if lines else "(Perfil incompleto)"
 
 
-def goal_setup_chat(message: str, history: list, raw_data: dict, user_name: str = "Atleta", coaching_rules=None, weekly_summaries=None, user_tz=None, user_profile: dict | None = None, upcoming_races: list | None = None) -> dict:
+def goal_setup_chat(message: str, history: list, raw_data: dict, user_name: str = "Atleta", coaching_rules=None, weekly_summaries=None, user_tz=None, user_profile: dict | None = None, upcoming_races: list | None = None, goal_history=None) -> dict:
     """
     Conversational goal-setting coach. Analyzes 90 days of athlete data and guides
     a natural conversation to produce a structured training goal.
@@ -555,7 +609,7 @@ def goal_setup_chat(message: str, history: list, raw_data: dict, user_name: str 
         else:
             races_block = ""
 
-        system_ctx = f"""Eres Sento, un sistema experto en análisis de entrenamiento. Tu misión es ayudar a {user_name} a definir un objetivo de entrenamiento realista y estructurado, usando sus datos reales de Garmin de los últimos 90 días.
+        system_ctx = f"""Eres Sento, un sistema experto en análisis de entrenamiento. Tu misión es ayudar a {user_name} a definir un objetivo de entrenamiento realista y estructurado, usando sus datos reales de entrenamiento de los últimos 90 días.
 
 === PERFIL DEL ATLETA (registrado por el usuario) ===
 {profile_text}
@@ -656,7 +710,7 @@ Notas sobre los campos:
 Solo incluye ese bloque cuando el atleta confirme o pida proceder. Puedes actualizar el bloque si ajusta algo después.
 Responde en español. Sé directo, motivador y profesional. Usa negritas y listas cuando ayude a la claridad.
 
-COMUNICACIÓN CON EL USUARIO (OBLIGATORIO): Nunca menciones términos técnicos como "JSON", "bloque de código", "datos estructurados", "estructura", "formato", "parámetros" ni ningún término informático. Cuando el objetivo esté listo para guardar, simplemente di: "¡Perfecto, {user_name}! Tu objetivo de entrenamiento está configurado. Revisa los detalles en la tarjeta de abajo y confirma cuando estés listo."{_format_rules(coaching_rules)}{_FITNESS_ONLY_RULE}"""
+COMUNICACIÓN CON EL USUARIO (OBLIGATORIO): Nunca menciones términos técnicos como "JSON", "bloque de código", "datos estructurados", "estructura", "formato", "parámetros" ni ningún término informático. Cuando el objetivo esté listo para guardar, simplemente di: "¡Perfecto, {user_name}! Tu objetivo de entrenamiento está configurado. Revisa los detalles en la tarjeta de abajo y confirma cuando estés listo."{_format_rules(coaching_rules)}{_format_goal_history(goal_history)}{_FITNESS_ONLY_RULE}"""
 
         contents = [
             genai_types.Content(role="user", parts=[genai_types.Part(text=system_ctx)]),
@@ -693,10 +747,10 @@ COMUNICACIÓN CON EL USUARIO (OBLIGATORIO): Nunca menciones términos técnicos 
         return {"reply": f"Error al consultar la IA: {str(e)}", "goal_draft": None}
 
 
-def ask_ai_with_context(question, dashboard_data, raw_data, history=None, user_name="Atleta", training_goal=None, coaching_rules=None, training_plan=None, weekly_summaries=None, user_tz=None, training_plan_schedule=None):
+def ask_ai_with_context(question, dashboard_data, raw_data, history=None, user_name="Atleta", training_goal=None, coaching_rules=None, training_plan=None, weekly_summaries=None, user_tz=None, training_plan_schedule=None, goal_history=None):
     """
     Toma una pregunta del usuario y responde usando Gemini con contexto
-    completo de los últimos 120 días de métricas de Garmin.
+    completo de los últimos 120 días de métricas de entrenamiento.
     """
     client = _get_client()
     if not client:
@@ -799,13 +853,13 @@ Si necesitas información que no está aquí, pregúntame directamente en el cha
 === RESÚMENES SEMANALES (hasta 26 semanas — cada fila es una semana) ===
 {weekly_text}
 
-Responde de forma clara, directa y profesional. Usa los datos reales de arriba. Puedes usar markdown básico (negritas, listas). Responde en español. Si el usuario pregunta algo que requiere información que no tienes, pídela directamente en el chat.{_format_rules(coaching_rules)}{_format_training_plan(training_plan)}{_format_plan_schedule(training_plan_schedule, user_tz)}{_FITNESS_ONLY_RULE}"""
+Responde de forma clara, directa y profesional. Usa los datos reales de arriba. Puedes usar markdown básico (negritas, listas). Responde en español. Si el usuario pregunta algo que requiere información que no tienes, pídela directamente en el chat.{_format_rules(coaching_rules)}{_format_training_plan(training_plan)}{_format_plan_schedule(training_plan_schedule, user_tz)}{_format_goal_history(goal_history)}{_FITNESS_ONLY_RULE}"""
 
         from google.genai import types as genai_types
 
         contents = []
         contents.append(genai_types.Content(role="user", parts=[genai_types.Part(text=system_ctx)]))
-        contents.append(genai_types.Content(role="model", parts=[genai_types.Part(text="Entendido. Tengo acceso a todos tus datos de Garmin. ¿En qué puedo ayudarte?")]))
+        contents.append(genai_types.Content(role="model", parts=[genai_types.Part(text="Entendido. Tengo acceso a todos tus datos de entrenamiento. ¿En qué puedo ayudarte?")]))
 
         for turn in (history or []):
             role = turn.get("role", "user")

@@ -2,10 +2,23 @@
 set -e
 
 # Configuración de Variables
-PROJECT_ID=$(gcloud config get-value project)
+EXPECTED_PROJECT_ID="garminconnect-489920"
+EXPECTED_ACCOUNT="jorvanp@gmail.com"
+
+PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
+ACTIVE_ACCOUNT=$(gcloud config get-value account 2>/dev/null)
+
 if [ -z "$PROJECT_ID" ]; then
     echo "❌ No hay proyecto GCP configurado."
     echo "Corre: gcloud init, o gcloud config set project [TU_PROYECTO]"
+    exit 1
+fi
+
+if [ "$PROJECT_ID" != "$EXPECTED_PROJECT_ID" ] || [ "$ACTIVE_ACCOUNT" != "$EXPECTED_ACCOUNT" ]; then
+    echo "❌ Configuración de gcloud incorrecta para este proyecto."
+    echo "   Esperado: proyecto=$EXPECTED_PROJECT_ID cuenta=$EXPECTED_ACCOUNT"
+    echo "   Activo:   proyecto=$PROJECT_ID cuenta=$ACTIVE_ACCOUNT"
+    echo "Corre: gcloud config configurations activate sento"
     exit 1
 fi
 
@@ -15,7 +28,7 @@ SECONDARY_REGION="us-central1"
 BUCKET_NAME="${PROJECT_ID}-garmin-data"
 
 echo "=========================================================="
-echo "🚀 Iniciando despliegue de Garmin Dashboard (multi-región)"
+echo "🚀 Iniciando despliegue de Sento Run (multi-región)"
 echo "Proyecto: $PROJECT_ID"
 echo "Regiones: $PRIMARY_REGION (primaria) + $SECONDARY_REGION (respaldo)"
 echo "Bucket: $BUCKET_NAME"
@@ -107,41 +120,7 @@ else
     echo "🔑 SESSION_SECRET generada."
 fi
 
-# CRON_KEY: reusar si existe para no romper el scheduler
-EXISTING_CRON_KEY=$(gcloud run services describe $SERVICE_NAME --region $PRIMARY_REGION \
-    --format="yaml(spec.template.spec.containers[0].env)" 2>/dev/null \
-    | grep -A1 "CRON_API_KEY" | grep "value:" | awk '{print $2}' || echo "")
-if [ -n "$EXISTING_CRON_KEY" ]; then
-    CRON_KEY="$EXISTING_CRON_KEY"
-    echo "✅ CRON_API_KEY reutilizada."
-else
-    CRON_KEY=$(openssl rand -hex 16)
-    echo "🔑 CRON_API_KEY generada."
-fi
-
-ENV_VARS="GARMIN_BUCKET=$BUCKET_NAME,CRON_API_KEY=$CRON_KEY,GEMINI_API_KEY=${GEMINI_API_KEY:-},OAUTH_CLIENT_ID=$OAUTH_CLIENT_ID,OAUTH_CLIENT_SECRET=$OAUTH_CLIENT_SECRET,SESSION_SECRET=$SESSION_SECRET"
-
-# 2b. Aviso de usuarios activos — deploy puede interrumpir recargas en curso
-echo "⚠️  Verificando usuarios con actividad reciente (últimos 10 min)..."
-python3 - <<CHECKEOF 2>/dev/null || true
-import os, sys
-os.environ.setdefault('GOOGLE_CLOUD_PROJECT', '$PROJECT_ID')
-try:
-    from datetime import datetime, timedelta, timezone
-    from google.cloud import firestore
-    db = firestore.Client(project='$PROJECT_ID')
-    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
-    users = db.collection('users').stream()
-    active = [u.to_dict().get('email', u.id) for u in users
-              if (u.to_dict().get('last_refresh') or '') > cutoff]
-    if active:
-        print(f"   ⚠️  {len(active)} usuario(s) con refresh reciente: {', '.join(active)}")
-        print("      El deploy puede interrumpir su carga. Espera un momento o continúa.")
-    else:
-        print("   ✅ Sin usuarios con actividad reciente — momento seguro para deploy.")
-except Exception as e:
-    print(f"   (no se pudo verificar usuarios activos: {e})")
-CHECKEOF
+ENV_VARS="GARMIN_BUCKET=$BUCKET_NAME,GEMINI_API_KEY=${GEMINI_API_KEY:-},OAUTH_CLIENT_ID=$OAUTH_CLIENT_ID,OAUTH_CLIENT_SECRET=$OAUTH_CLIENT_SECRET,SESSION_SECRET=$SESSION_SECRET"
 
 # 3. Construir imagen una sola vez y desplegar en ambas regiones
 echo "☁️  3/5 Construyendo imagen y desplegando en ambas regiones..."
@@ -180,8 +159,8 @@ SECONDARY_URL=$(gcloud run deploy $SERVICE_NAME \
     --format="value(status.url)")
 echo "   ✅ $SECONDARY_REGION: $SECONDARY_URL"
 
-# 4. Eliminar cron jobs si existen (sync con Garmin desactivado)
-echo "🗑️  4/5 Eliminando cron jobs (sync Garmin desactivado)..."
+# 4. Eliminar cron jobs heredados (la integración Garmin y su cron fueron eliminados)
+echo "🗑️  4/5 Eliminando cron jobs heredados..."
 gcloud scheduler jobs delete garmin-hourly-refresh --location $PRIMARY_REGION --quiet &> /dev/null || true
 gcloud scheduler jobs delete garmin-token-warmup --location $PRIMARY_REGION --quiet &> /dev/null || true
 echo "   ✅ Cron jobs eliminados (o no existían)."
@@ -195,7 +174,6 @@ try:
     from google.cloud import firestore
     db = firestore.Client(project='$PROJECT_ID')
     db.collection('system').document('config').set({
-        'max_refresh_today': 10,
         'max_users': 20,
     }, merge=True)
     print("   ✅ Configuración de Firestore inicializada.")
@@ -306,8 +284,6 @@ echo "🎉 ¡Despliegue Multi-Región Completado!"
 echo ""
 echo "🌎 Región primaria  ($PRIMARY_REGION):  $PRIMARY_URL"
 echo "🌎 Región respaldo  ($SECONDARY_REGION): $SECONDARY_URL"
-echo ""
-echo "⏰ Cron activo en: $PRIMARY_REGION"
 echo ""
 echo "📋 CAMBIAR A REGIÓN DE RESPALDO (si la primaria tiene problemas):"
 echo "   Actualiza el redirect URI en Google Console a:"

@@ -76,11 +76,6 @@ def callback():
         'is_admin': is_admin,
         'last_login': datetime.now(timezone.utc).isoformat(),
     }
-    if not existing:
-        update_data['garmin_connected'] = False
-        update_data['refresh_today_count'] = 0
-        update_data['last_refresh_today_date'] = ''
-
     firestore_helper.upsert_user(uid, update_data)
 
     user = firestore_helper.get_user(uid)
@@ -105,13 +100,8 @@ def callback():
     session['display_name'] = userinfo.get('name', email)
     session['picture_url'] = userinfo.get('picture', '')
     session['is_admin'] = is_admin
-    session['garmin_connected'] = user.get('garmin_connected', False)
     session['timezone'] = user.get('timezone', 'America/Mexico_City')
     session['lang'] = lang
-    session['needs_login_refresh'] = True  # Always refresh on fresh login
-
-    if not session['garmin_connected']:
-        return redirect(url_for('onboarding.warning'))
 
     return redirect(url_for('dashboard.index'))
 
@@ -146,12 +136,8 @@ def dev_login():
     session['display_name'] = match.get('display_name', match.get('email', 'Atleta'))
     session['picture_url'] = match.get('picture_url', '')
     session['is_admin'] = match.get('email', '') in ADMIN_EMAILS
-    session['garmin_connected'] = match.get('garmin_connected', False)
     session['timezone'] = match.get('timezone', 'America/Mexico_City')
     session['lang'] = match.get('lang', 'es')
-    session['needs_login_refresh'] = True
     logger.warning(f"DEV LOGIN (LOCAL_DEV) as {session['email']} / {uid}")
 
-    if not session['garmin_connected']:
-        return redirect(url_for('onboarding.warning'))
     return redirect(url_for('dashboard.index'))

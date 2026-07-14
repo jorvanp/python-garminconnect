@@ -1,6 +1,6 @@
 # 🏃 Sento Run
 
-App web de coaching de fitness personalizado, desplegada en Google Cloud Platform. Los usuarios conectan su cuenta Garmin (o importan actividades via CSV), y el asistente IA **Sento** genera planes de entrenamiento semana a semana, responde preguntas de fitness y registra el progreso hacia una meta de carrera a pie o de ciclismo (multideporte).
+App web de coaching de fitness personalizado, desplegada en Google Cloud Platform. Los usuarios importan sus actividades vía CSV exportado desde Garmin Connect, y el asistente IA **Sento** genera planes de entrenamiento semana a semana, responde preguntas de fitness y registra el progreso hacia una meta de carrera a pie o de ciclismo (multideporte).
 
 ---
 
@@ -10,7 +10,7 @@ App web de coaching de fitness personalizado, desplegada en Google Cloud Platfor
 |---|---|
 | Backend | Flask (Python), blueprints por módulo |
 | Auth usuarios | Google OAuth 2.0 |
-| Auth Garmin | API no oficial (`garminconnect` + `garth`) |
+| Ingesta de datos | Import manual de CSV exportado desde Garmin Connect |
 | IA | Google Gemini 2.5 Flash / Pro (asistente "Sento") |
 | Base de datos | Firestore |
 | Almacenamiento | Google Cloud Storage |
@@ -24,27 +24,24 @@ App web de coaching de fitness personalizado, desplegada en Google Cloud Platfor
 app.py                      # Entrada Flask, registra blueprints
 auth.py                     # Google OAuth callback
 routes/
-  dashboard.py              # Dashboard principal, prescripción, plan
+  dashboard.py              # Dashboard principal, prescripción, plan, importación de CSV
   admin.py                  # Panel de administración
-  onboarding.py             # Flujo de conexión con Garmin
-  cron.py                   # Endpoints de actualización periódica
+  onboarding.py             # Assessment de perfil del atleta
 ai_advisor.py               # Gemini: prescripción, chat Sento, generación de plan
 helpers.py                  # process_dashboard_data() — transforma datos para el template
 weekly_summarizer.py        # Resúmenes semanales de entrenamiento
-export_data.py              # Conexión a Garmin API, fetch de datos
-garmin_onboarding.py        # Estado en memoria de refreshes
 firestore_helper.py         # Operaciones Firestore
-gcs_helper.py               # Operaciones GCS
+gcs_helper.py                # Operaciones GCS
 tz_utils.py                 # Utilidades de zona horaria (CDMX)
 templates/
   fitness_report.html       # Dashboard del usuario
   training_plan.html        # Plan de entrenamiento semana a semana
   goal_setup.html           # Chat con Sento para definir objetivo
   admin_dashboard.html      # Panel admin
-  onboarding.html           # Flujo de onboarding
 deploy.sh                   # Deploy completo a Cloud Run
 tests/
   test_helpers.py           # Tests de process_dashboard_data y _merge_goal
+  test_dashboard_auth.py    # Tests del gate de login
 ```
 
 ---
@@ -53,7 +50,7 @@ tests/
 
 - **Plan de entrenamiento personalizado (multideporte)**: Sento genera un plan semana a semana según el objetivo del usuario — carrera a pie (10K, media, maratón, trail) o ciclismo (ruta, gran fondo, gravel, MTB; exterior o rodillo/indoor) — con su disponibilidad, historial de actividades, zonas de FC/potencia y sesiones de fuerza y movilidad
 - **Chat con Sento**: El asistente IA responde preguntas sobre entrenamiento, nutrición deportiva y recuperación. Limita su contexto exclusivamente a fitness
-- **Importación de actividades**: Los usuarios pueden subir exports CSV de Garmin Connect cuando la sincronización directa no está disponible
+- **Importación de actividades**: Los usuarios suben exports CSV de Garmin Connect — es la única vía de ingesta de datos, no hay conexión API en vivo
 - **Panel de administración**: Gestión de usuarios, toggles globales de funcionalidades, visualización del dashboard de cualquier usuario
 
 ---
@@ -104,7 +101,7 @@ LOCAL_DEV=1 PORT=8080 python app.py    # http://localhost:8080
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/test_helpers.py -v
+.venv/bin/python -m pytest tests/ -v
 ```
 
 Correr antes de cada cambio en código Python del backend. Ver `CLAUDE.md` para detalles del proyecto.
@@ -120,4 +117,3 @@ Correr antes de cada cambio en código Python del backend. Ver `CLAUDE.md` para 
 | `GEMINI_API_KEY` | API key de Google Gemini |
 | `GARMIN_BUCKET` | Nombre del bucket GCS (default: `garminconnect-489920-garmin-data`) |
 | `SESSION_SECRET` | Secret para sesiones Flask |
-| `CRON_API_KEY` | API key para proteger endpoints internos |

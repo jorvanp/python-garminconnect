@@ -1,4 +1,4 @@
-# CLAUDE.md — GarminConnect App
+# CLAUDE.md — Sento Run
 
 Contexto del proyecto para Claude y nuevos colaboradores.
 
@@ -6,7 +6,7 @@ Contexto del proyecto para Claude y nuevos colaboradores.
 
 ## Qué hace la app
 
-App web de coaching de fitness personalizado con login por cuenta de Google. El usuario puede conectar su cuenta Garmin, la app descarga su historial de actividades y métricas diarias, y el asistente IA **Sento** (basado en Gemini) genera prescripciones de entrenamiento diarias, responde preguntas de fitness, define objetivos y genera planes de entrenamiento semana a semana. Es **multideporte**: soporta objetivos de carrera a pie y de ciclismo (ruta y rodillo/indoor), más recomendaciones de fuerza y movilidad/estiramientos.
+App web de coaching de fitness personalizado con login por cuenta de Google. El usuario sube su historial de actividades exportado desde Garmin Connect (CSV), y el asistente IA **Sento** (basado en Gemini) genera prescripciones de entrenamiento diarias, responde preguntas de fitness, define objetivos y genera planes de entrenamiento semana a semana. Es **multideporte**: soporta objetivos de carrera a pie y de ciclismo (ruta y rodillo/indoor), más recomendaciones de fuerza y movilidad/estiramientos.
 
 **Usuarios:** ~5 usuarios activos. App en producción en GCP.
 
@@ -18,12 +18,11 @@ App web de coaching de fitness personalizado con login por cuenta de Google. El 
 |---|---|
 | Backend | Flask (Python), blueprints por módulo |
 | Auth usuarios | Google OAuth 2.0 |
-| Auth Garmin | API no oficial (`garminconnect` + `garth`) |
+| Ingesta de datos | Import manual de CSV exportado desde Garmin Connect (sin conexión API en vivo) |
 | IA | Google Gemini 2.5 Flash (asistente "Sento") |
 | Base de datos | Firestore (usuarios, metadata, summaries) |
 | Almacenamiento | GCS bucket `{PROJECT_ID}-garmin-data` |
 | Deploy | Cloud Run — `bash deploy.sh` |
-| Cron | Cloud Scheduler → endpoint `/internal/cron-refresh` |
 
 ---
 
@@ -31,14 +30,10 @@ App web de coaching de fitness personalizado con login por cuenta de Google. El 
 
 ```
 app.py                      # Entrada Flask, registra blueprints, filtros Jinja
-auth.py                     # Google OAuth callback, guarda last_login, setea needs_login_refresh
+auth.py                     # Google OAuth callback, guarda last_login
 routes/
-  dashboard.py              # Dashboard principal, loading screen, /prescription/status,
-                            # /plan, /goal/generate-plan, /upload-activities, /garmin-reconnect
-  cron.py                   # Cron diario de actualización de datos
-  admin.py                  # Panel admin (toggle garmin_sync_disabled por usuario)
-garmin_onboarding.py        # Estado en memoria de refreshes (_refreshing, _fetch_progress)
-export_data.py              # Conexión a Garmin API, fetch de datos, init_api() con retry 429
+  dashboard.py              # Dashboard principal, /plan, /goal/generate-plan, /upload-activities
+  admin.py                  # Panel admin
 ai_advisor.py               # Gemini: prescripción diaria, chat Sento, setup de objetivos,
                             # generación de plan de entrenamiento semana a semana
 helpers.py                  # process_dashboard_data() — transforma raw data para el template
@@ -48,83 +43,47 @@ gcs_helper.py               # Operaciones GCS
 tz_utils.py                 # now_cdmx(), today_tz(), filtro Jinja ts_cdmx
 templates/
   fitness_report.html       # Dashboard del usuario
-  dashboard_loading.html    # Pantalla de carga con polling a /prescription/status
   training_plan.html        # Plan de entrenamiento semana a semana
   goal_setup.html           # Chat con Sento para definir objetivo + generar plan
+  goal_history.html         # Objetivos archivados (ver sección "Objetivos archivados")
   admin_dashboard.html      # Panel admin
   _user_menu.html           # Partial: dropdown de usuario (Mi perfil / Objetivos anteriores / Salir).
                             # Incluido con {% include %} en toda página de usuario logueado —
                             # nunca copiar/pegar el menú, siempre incluir este partial
   _admin_menu.html          # Partial: links del navbar de admin. Incluido en toda página /admin/*
-deploy.sh                   # Deploy completo a Cloud Run (incluye scheduler y secrets)
+deploy.sh                   # Deploy completo a Cloud Run
 ```
 
 ---
 
-## Flujo de login y refresh
+## Paleta de colores
 
-1. `auth.py` — setea `session['needs_login_refresh'] = True` en cada login OAuth
-2. `routes/dashboard.py index()` — consume el flag con `session.pop('needs_login_refresh', False)`
-3. Si hay flag (o no hay datos, o está refreshing) → muestra `dashboard_loading.html`
-4. Antes de iniciar el thread: `refresh_pending(user_id)` setea `pct=1` para evitar que el estado stale del refresh anterior marque `ready=True` prematuramente
-5. Thread en background ejecuta `_refresh_background()` → llama `fetch_data_current_month()` → genera prescripción IA si hay actividades nuevas hoy o la prescripción no es de hoy
-6. `dashboard_loading.html` hace polling a `/prescription/status` cada 1.5-3s
-7. `prescription_status` devuelve `ready=True` solo cuando `pct==100 AND not refreshing AND has_ai`
-8. Al recibir `ready=True` → redirige a `/`
+No hay un archivo CSS central — cada plantilla trae su propio bloque `<style>` con colores hardcodeados. La paleta de marca es:
 
-**Estado en memoria (garmin_onboarding.py):**
-- `_refreshing`: set de user_ids actualmente en refresh
-- `_fetch_progress`: dict `{user_id: {pct, msg, type}}`
-- Se pierde si Cloud Run reinicia la instancia — `prescription_status` lo detecta (`pct==0 AND not refreshing`) y reinicia el refresh automáticamente
+- **Rojo Enérgico** `#E63946` — color primario de marca (botones, CTAs, acentos, headers destacados). Variante hover/oscura: `#C3303B`.
+- **Gris Oscuro** `#2B2D42` — color secundario/base (fondos oscuros, headers, gradientes). Variantes de la misma familia usadas en gradientes: `#1E1F2E` (más oscuro), `#3A3C58` / `#555767` / `#757684` (más claros).
+
+Estos reemplazan la paleta naranja/navy anterior (`#f97316`, `#ea580c`, `#1a1a2e`, `#16213e`, `#0f3460`, etc.). Al agregar una plantilla nueva o un componente con color, usar estos hex — no reintroducir la paleta anterior. Los colores semánticos de estado (verde éxito `#22c55e`/`#16a34a`, rojo error `#ef4444`, amarillo advertencia `#eab308`) son independientes de la marca y no se tocan.
 
 ---
 
-## Cron diario (5am CDMX / 11am UTC)
+## Flujo de login y dashboard
 
-- Endpoint: `POST /internal/cron-refresh?apikey=CRON_API_KEY`
-- Procesa usuarios **secuencialmente** (no en paralelo) — evita OOM y rate limits de Garmin
-- Solo carga **últimos 14 días** (`fetch_data_recent`) — no los 6 meses completos
-- **No genera prescripción IA** — se genera al primer login del usuario
-- Delay de 20s entre usuarios
-- Usuarios con `garmin_sync_disabled=True` son saltados (se registra en results["success"])
-
-**Por qué secuencial:** Con 5 usuarios en paralelo × JSON de 6 meses cada uno = OOM (>512MB). Secuencial + 14 días = ~28 segundos total, flat en memoria.
+1. Login por Google OAuth (`auth.py`) — no hay ningún paso adicional de "conectar cuenta"; tras el login (y el assessment de perfil si es la primera vez) el usuario va directo a `routes/dashboard.py index()`.
+2. `index()` carga los datos ya almacenados en GCS (`training_data_monthly.json`) para el usuario. Si no hay datos todavía, renderiza `fitness_report.html` con un esqueleto vacío y el CTA de "Importar CSV".
+3. No hay pantalla de carga ni polling en el login — la carga de datos es síncrona porque no hay ninguna llamada externa lenta de por medio (a diferencia de cuando la app dependía de la API de Garmin).
 
 ---
 
-## Tokens de Garmin
-
-- `oauth1_token`: larga duración (meses/años), guardado en GCS por usuario
-- `oauth2_token`: expira en 1 hora, se regenera del oauth1 via `sso.exchange()`
-- `init_api()` en `export_data.py` tiene retry con backoff (15s → 30s → 60s) para 429
-
-**Problema conocido — Rate limit 429:**
-El rate limit de Garmin es **por cuenta de usuario** (no por IP). Ocurre cuando múltiples usuarios necesitan exchange de token simultáneamente. No se resuelve cambiando de región.
-- Si ocurre: esperar 2-6 horas sin hacer más intentos
-- Si persiste: regenerar tokens manualmente desde máquina local con `garth.login()` + `gsutil cp`
-- Prevención: el cron guarda los tokens frescos — los usuarios que entren dentro de la hora siguiente no necesitan exchange
-
-**Plan futuro:** Migrar a Garmin Health API oficial (webhook push). La arquitectura híbrida planeada es: unofficial API para carga inicial de 6 meses + webhook oficial para actualizaciones diarias.
-
----
-
-## garmin_sync_disabled (flag admin)
-
-Cuando un admin activa esta bandera por usuario en Firestore:
-- El cron salta al usuario (no llama Garmin API)
-- El login no dispara refresh de Garmin; muestra dashboard con banner de aviso
-- El usuario puede importar actividades vía CSV para que Sento genere prescripción
-- `_regenerate_ai_only()` genera prescripción desde datos existentes sin llamar a Garmin
-
----
-
-## Importación de CSV
+## Importación de CSV (única vía de ingesta de datos)
 
 - Endpoint: `POST /upload-activities`
-- Acepta exports de Garmin en español (headers en español)
+- Acepta exports de Garmin Connect en español (headers en español) — `Actividades → Exportar CSV` desde Garmin Connect
 - Deduplica por `startTimeLocal`
-- Siempre regenera prescripción IA después del upload (aunque no haya actividades nuevas)
-- Tipos de actividad mapeados en `_ACTIVITY_TYPE_MAP` (dashboard.py)
+- Recalcula los resúmenes semanales (`weekly_summarizer.compute_weekly_summaries`) después de cada import
+- Tipos de actividad mapeados en `_ACTIVITY_TYPE_MAP` (`routes/dashboard.py`) — replica la taxonomía de Garmin para que las actividades importadas se rendericen igual que si vinieran de la API
+- Actualiza `last_refresh` del usuario en Firestore
+- **No existe conexión en vivo a la API de Garmin.** La app se conectaba antes vía `garminconnect`/`garth` (API no oficial); esa integración fue eliminada por completo — ya no hay tokens OAuth1/OAuth2, ni cron de sincronización, ni reconexión. El CSV es la única fuente de datos.
 
 ---
 
@@ -159,13 +118,13 @@ long_run_day, plan_start_preference, plan_start_date
 **Prescripción del día** — se regenera si:
 1. No existe prescripción previa, O
 2. La prescripción existente no es de hoy, O
-3. Hay actividades nuevas registradas hoy vs las que había antes del refresh
+3. Hay actividades nuevas registradas hoy vs las que había antes del último import
 
 **Contexto de la prescripción:**
 - Actividades detalladas de las **últimas 6 semanas** (desde `raw_data`)
 - Resúmenes semanales de los **últimos 4 meses** (`weekly_summaries`)
 - Perfil del atleta: lesiones, disponibilidad (si están en el `training_goal`)
-- Métricas fisiológicas del día (VO2 Máx, RHR, estrés)
+- Métricas fisiológicas del día si están disponibles en el CSV importado (VO2 Máx, RHR, estrés)
 
 **Chat general (ask_ai_with_context):**
 - Actividades detalladas de las últimas 6 semanas
@@ -231,6 +190,19 @@ plan_duration_weeks, plan_start_date
 
 ---
 
+## Objetivos archivados (`goal_history`)
+
+Cuando el objetivo activo de un usuario deja de ser vigente, se archiva en vez de eliminarse:
+
+- **Trigger automático (evento cumplido):** en `routes/dashboard.py` `index()`, justo tras cargar `user_doc_pre`, `_archive_expired_goal_if_needed()` revisa `is_goal_expired()` (`helpers.py` — `event_date` estrictamente anterior a hoy). Si expiró, archiva y limpia `training_goal`/`training_plan_schedule` del doc activo antes de renderizar, así el Hero deja de mostrarlo (`goal_configured` vuelve a `False`).
+- **Trigger manual (objetivo reemplazado):** en `save_goal()` (`POST /goal`), si ya existía un objetivo con un `event_date` distinto al nuevo, se archiva el anterior antes de guardar el nuevo. Editar el mismo objetivo (mismo `event_date`, p. ej. ajustar el ritmo) **no** archiva nada.
+- **Almacenamiento:** subcolección Firestore `users/{uid}/goal_history/{auto_id}` — no es una colección nueva a nivel raíz, vive dentro del doc del usuario. Cada entrada guarda `training_goal`, `training_plan_schedule` (snapshot), `archive_reason` (`event_passed` | `replaced`), `archived_at`, y `summary` (texto corto).
+- **`summary`:** se genera **una sola vez** al archivar, vía `ai_advisor.summarize_archived_goal()` (una llamada a Gemini flash; si falla, cae a un resumen de texto plano armado desde los campos del goal). No se vuelve a generar después.
+- **Vista:** `GET /goals/history` → `templates/goal_history.html`, accesible desde el menú de usuario en el dashboard y en `/plan`.
+- **Contexto para Sento:** `firestore_helper.get_goal_history(uid, max_days=90)` filtra a los últimos 90 días y se pasa como `goal_history` a `ask_ai_with_context()` y `goal_setup_chat()` en `ai_advisor.py`, formateado por `_format_goal_history()`. El costo marginal es bajo: con ~5 usuarios activos rara vez hay más de 1-2 objetivos archivados en esa ventana, y el resumen es de pocas líneas de texto plano (no se re-consulta Gemini en cada mensaje).
+
+---
+
 ## Weekly summaries (resúmenes semanales)
 
 - Se calculan en `compute_weekly_summaries()` de `weekly_summarizer.py`
@@ -244,10 +216,8 @@ plan_duration_weeks, plan_start_date
 
 ```
 users/{google_user_id}/
-  tokens/
-    oauth1_token.json
-    oauth2_token.json
-  training_data_monthly.json   # Historial completo: actividades + métricas diarias por mes
+  training_data_monthly.json   # Historial completo: actividades + métricas diarias por mes,
+                               # construido a partir de los CSV importados.
                                # También contiene metadata.ai_recommendation y ai_recommendation_date
 ```
 
@@ -256,9 +226,7 @@ users/{google_user_id}/
 training_goal           # Objetivo configurado (ver campos arriba)
 training_plan           # Plan subido como imagen (texto extraído por Gemini)
 training_plan_schedule  # Plan generado semana a semana por Sento
-garmin_sync_disabled    # Flag admin: deshabilita toda llamada a Garmin API
-needs_garmin_reconnect  # Flag: token inválido, pedir reconexión al usuario
-last_refresh            # Timestamp del último refresh exitoso
+last_refresh            # Timestamp del último import de CSV
 timezone                # Zona horaria IANA del usuario
 ```
 
@@ -267,14 +235,15 @@ timezone                # Zona horaria IANA del usuario
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/test_helpers.py -v
+.venv/bin/python -m pytest tests/ -v
 ```
 
 **Regla:** Antes de cada cambio en `helpers.py`, `routes/admin.py`, `routes/dashboard.py` o `weekly_summarizer.py`, correr los tests. Si un cambio rompe un test, arreglarlo antes de continuar.
 
-**Archivos de test del proyecto (no del paquete garminconnect):**
+**Archivos de test del proyecto:**
 ```
-tests/test_helpers.py    # process_dashboard_data, _merge_goal
+tests/test_helpers.py          # process_dashboard_data, _merge_goal, is_goal_expired
+tests/test_dashboard_auth.py   # login_required (gate de sesión, sin Firestore)
 ```
 
 **Qué cubren los tests actuales:**
@@ -282,6 +251,7 @@ tests/test_helpers.py    # process_dashboard_data, _merge_goal
 - `process_dashboard_data(None/{}/ sin months)` → devuelve None (no crashea en admin)
 - `process_dashboard_data(raw_mínimo)` → dict con todas las keys que usa el template
 - Regression: `dashboard_data['_admin_viewing'] = True` no crashea cuando data es válida
+- `login_required` solo exige `user_id` en sesión (sin gate adicional)
 
 ---
 
@@ -289,7 +259,7 @@ tests/test_helpers.py    # process_dashboard_data, _merge_goal
 
 Al terminar cualquier flujo o funcionalidad, seguir SIEMPRE este orden, sin saltarse pasos:
 
-1. **Correr las pruebas unitarias** — `.venv/bin/python -m pytest tests/test_helpers.py -v`
+1. **Correr las pruebas unitarias** — `.venv/bin/python -m pytest tests/ -v`
 2. **Si el cambio introduce un flujo nuevo, agregar sus pruebas correspondientes** antes de continuar (no dejar flujos nuevos sin cobertura).
 3. **Solo cuando las pruebas estén en verde**, actualizar los archivos de documentación (`.md`: `CLAUDE.md`, `README.md`) que hayan quedado desactualizados por el cambio.
 4. **Luego hacer el commit** al repositorio.
@@ -301,16 +271,13 @@ Nunca commitear con pruebas en rojo, ni desplegar antes de commitear, ni despleg
 
 ## Reglas importantes — no hacer
 
-- **No paralelizar usuarios en el cron** — OOM garantizado con más de 2 usuarios
-- **No generar prescripción IA en el cron** — es lento y costoso; se genera al login
-- **No usar `last_refresh[:10] == today` como trigger de refresh** — usar el session flag `needs_login_refresh`
-- **No cargar 6 meses completos en el cron** — usar `fetch_data_recent` (14 días)
 - **No mockear Firestore/GCS en tests** — las divergencias mock/prod han causado bugs en producción
 - **No mencionar términos técnicos al usuario** — Sento nunca habla de JSON, estructuras, bloques de código, etc.
 - **No calcular weekly_summaries después del llamado a generate_daily_recommendation** — deben calcularse antes para pasarlos como contexto
-- **Siempre correr tests antes de deployar** — `.venv/bin/python -m pytest tests/test_helpers.py -v`
+- **Siempre correr tests antes de deployar** — `.venv/bin/python -m pytest tests/ -v`
 - **Diseño responsivo obligatorio** — todos los cambios de UI deben funcionar en móvil (≤640px). Usar `@media (max-width: 640px)` y `@media (max-width: 700px)`. Revisar especialmente grids, tablas y tarjetas que en móvil deben colapsar a columna única o usar scroll horizontal controlado. Nunca dejar elementos que crezcan sin límite de ancho en flex layouts móviles (`flex: 0 0 <fixed>px` en vez de dejar grow implícito).
 - **No copiar/pegar el menú de usuario o el navbar de admin en una plantilla nueva** — usar `{% include '_user_menu.html' %}` (páginas de usuario) o `{% include '_admin_menu.html' %}` (páginas `/admin/*`). Copiar el markup a mano fue la causa de que el dropdown apareciera incompleto o distinto según la página.
+- **No reintroducir una conexión en vivo a la API de Garmin.** La integración no oficial (`garminconnect`/`garth`, tokens OAuth1/OAuth2, cron de sincronización, reconexión) fue eliminada deliberadamente por ser inestable (rate limits, revocación de acceso) y por privacidad. El CSV manual es la vía de ingesta soportada.
 
 ---
 
@@ -324,7 +291,6 @@ LOCAL_DEV=1 PORT=8080 .venv/bin/python app.py    # http://localhost:8080
 - **`/auth/dev-login`** (`auth.py`): salta Google OAuth y crea sesión como un usuario existente de Firestore (por email; default el admin, o `DEV_LOGIN_EMAIL=...`). **Inerte en producción** — sin `LOCAL_DEV=1` responde con redirect al login normal.
 - ⚠️ **NUNCA** setear `LOCAL_DEV=1` en Cloud Run. No está en `deploy.sh`.
 - Para que el login normal con Google funcione en local, la URI `http://localhost:8080/auth/callback` debe estar en las *Authorized redirect URIs* del cliente OAuth.
-- `garth` es dependencia transitiva de `garminconnect` (vendorizado) y **debe** estar en `requirements.txt`.
 
 ---
 
@@ -334,7 +300,7 @@ LOCAL_DEV=1 PORT=8080 .venv/bin/python app.py    # http://localhost:8080
 bash deploy.sh
 ```
 
-El script maneja: build, push a Artifact Registry, deploy a Cloud Run, actualización de Cloud Scheduler. Asegúrate de tener las variables de entorno exportadas antes de correr:
+El script maneja: build, push a Artifact Registry, deploy a Cloud Run. Asegúrate de tener las variables de entorno exportadas antes de correr:
 
 ```bash
 export OAUTH_CLIENT_ID=...
@@ -343,11 +309,11 @@ export GEMINI_API_KEY=...
 # (ver resto en deploy.sh)
 ```
 
-**Región actual:** `us-east1`
-**Memoria:** 2Gi | **Timeout:** 900s | **Scheduler deadline:** 840s
+**Región actual:** `us-east1` (primaria) + `us-central1` (respaldo)
+**Memoria:** 2Gi | **Timeout:** 900s
 
 ---
 
 ## Zona horaria
 
-Toda la lógica de fechas usa CDMX (UTC-6) como fallback. En código request-time usar siempre `today_tz(user_tz)` / `now_tz(user_tz)` pasando el timezone del usuario (guardado en `session['timezone']` y Firestore). En threads de background y cron usar `now_cdmx()` / `today_cdmx()`.
+Toda la lógica de fechas usa CDMX (UTC-6) como fallback. En código request-time usar siempre `today_tz(user_tz)` / `now_tz(user_tz)` pasando el timezone del usuario (guardado en `session['timezone']` y Firestore). En threads de background usar `now_cdmx()` / `today_cdmx()`.

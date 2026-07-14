@@ -9,8 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
-    --accent: #f97316;
-    --accent-dark: #ea580c;
+    --accent: #E63946;
+    --accent-dark: #C3303B;
     --green: #22c55e;
     --green-dark: #16a34a;
     --bg: #f0f2f5;
@@ -29,7 +29,7 @@
   .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 0; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { background: #f9fafb; font-weight: 700; text-align: left; padding: 10px 8px; color: var(--muted); font-size: 12px; border-bottom: 2px solid var(--border); letter-spacing: 0.3px; text-transform: uppercase; }
-  .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f3460 100%); color: white; padding: 28px 24px; border-radius: 16px; margin-bottom: 20px; }
+  .header { background: linear-gradient(135deg, #1E1F2E 0%, #757684 60%, #555767 100%); color: white; padding: 28px 24px; border-radius: 16px; margin-bottom: 20px; }
   .header h1 { font-size: 26px; font-weight: 900; }
   .header p { opacity: 0.7; margin-top: 4px; font-size: 14px; }
   .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -51,14 +51,14 @@
 
   /* Chat */
   #aiChatSection { border-left: 4px solid var(--accent); background: #fffbf7; }
-  #aiChatSection h2 { color: var(--accent-dark); border-color: #fed7aa; }
+  #aiChatSection h2 { color: var(--accent-dark); border-color: #F3A5AB; }
   #aiQuestion { width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;font-family:inherit;resize:none;min-height:48px;max-height:120px;overflow-y:auto;transition:border 0.2s;outline:none;background:#fff; }
   #aiQuestion:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(249,115,22,0.12); }
   #charCount { font-size:11px;color:#9ca3af;text-align:right;margin-top:2px; }
   #askBtn { background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;border:none;border-radius:12px;padding:12px 22px;font-size:14px;font-weight:800;cursor:pointer;transition:opacity 0.2s;margin-top:0;white-space:nowrap; }
   #askBtn:hover { opacity:0.88; }
   #askBtn:disabled { opacity:0.45;cursor:not-allowed; }
-  #aiResponse { margin-top:16px;padding:16px;background:#fff;border-radius:12px;border:1px solid #fed7aa;min-height:60px;font-size:14px;color:var(--text);line-height:1.7;display:none; }
+  #aiResponse { margin-top:16px;padding:16px;background:#fff;border-radius:12px;border:1px solid #F3A5AB;min-height:60px;font-size:14px;color:var(--text);line-height:1.7;display:none; }
   #aiLoader { display:none;text-align:center;padding:16px;color:var(--accent);font-size:13px;gap:8px;align-items:center;justify-content:center; }
   /* Chat bubbles */
   #chatHistory { display:flex;flex-direction:column;gap:12px;margin-bottom:14px;max-height:440px;overflow-y:auto;padding:4px 2px; }
@@ -89,11 +89,11 @@
 <body>
 
 <!-- NAVBAR -->
-<nav style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:white;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,0.3);">
+<nav style="background:linear-gradient(135deg,#1E1F2E 0%,#757684 100%);color:white;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,0.3);">
   <div style="display:flex;align-items:center;gap:10px;">
     <span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span>
     <span style="font-size:16px;font-weight:900;letter-spacing:-0.3px;">Sento</span>
-    <span style="background:#f97316;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:0.5px;">RUN</span>
+    <span style="background:#E63946;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:0.5px;">RUN</span>
     {% if _admin_viewing %}<span style="background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:4px;">ADMIN: {{ _admin_user_email }}</span>{% endif %}
   </div>
   <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
@@ -104,65 +104,9 @@
 <div class="container">
 
 
-  {% if garmin_reconnect_needed %}
-  <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-    <span style="color:#9a3412;font-size:14px;">⚠️ <strong>Conexión con Garmin interrumpida.</strong> Estás viendo tus últimos datos guardados.</span>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <label id="csv-label-reconnect" style="background:#16a34a;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
-        📂 {{ _('Importar CSV de Garmin') }}
-        <input type="file" accept=".csv" style="display:none" onchange="uploadCSV(this)">
-      </label>
-      <a href="/garmin-reconnect" style="background:#ea580c;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;">🔌 {{ _('Reconectar Garmin') }}</a>
-    </div>
-  </div>
-  {% endif %}
-
   <div id="csv-upload-msg" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#166534;"></div>
 
   <script>
-  function _disableCsvButtons(text) {
-    ['csv-label-disabled', 'csv-label-reconnect'].forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.style.opacity = '0.5';
-      el.style.pointerEvents = 'none';
-      el.style.cursor = 'default';
-      el.childNodes[0].textContent = text;
-    });
-  }
-
-  async function uploadCSV(input) {
-    const file = input.files[0];
-    if (!file) return;
-    const msg = document.getElementById('csv-upload-msg');
-    msg.style.display = 'block';
-    msg.style.background = '#f0fdf4'; msg.style.borderColor = '#86efac'; msg.style.color = '#166534';
-    msg.textContent = '⏳ Subiendo actividades...';
-    _disableCsvButtons(' ⏳ Subiendo...');
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const res = await fetch('/upload-activities', {method: 'POST', body: form});
-      const data = await res.json();
-      if (data.error) {
-        msg.style.background = '#fef2f2'; msg.style.borderColor = '#fca5a5'; msg.style.color = '#991b1b';
-        msg.textContent = '❌ ' + data.error;
-        ['csv-label-disabled','csv-label-reconnect'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) { el.style.opacity='1'; el.style.pointerEvents='auto'; el.style.cursor='pointer'; el.childNodes[0].textContent = '📂 Importar CSV'; }
-        });
-      } else {
-        const label = data.added > 0 ? `✅ ${data.added} actividades importadas. Generando prescripción...` : '✅ Generando prescripción con datos existentes...';
-        msg.textContent = label;
-        _disableCsvButtons('✅ Procesando...');
-        setTimeout(() => { window.location.href = '/'; }, 1500);
-      }
-    } catch(e) {
-      msg.style.background = '#fef2f2'; msg.style.color = '#991b1b';
-      msg.textContent = '❌ Error al subir el archivo.';
-    }
-  }
-
   function openCsvModal() {
     const m = document.getElementById('csvModal');
     m.style.display = 'flex';
@@ -184,7 +128,7 @@
     lbl.style.opacity = '0.5'; lbl.style.pointerEvents = 'none';
     lbl.childNodes[0].textContent = '⏳ Subiendo...';
     msg.style.display = 'block';
-    msg.style.background = '#fff7ed'; msg.style.color = '#9a3412';
+    msg.style.background = '#FDF2F2'; msg.style.color = '#9a3412';
     msg.textContent = '⏳ Subiendo actividades...';
     const form = new FormData();
     form.append('file', file);
@@ -216,7 +160,7 @@
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
       <div>
         <h1><img src="/static/logo-icon.png" alt="" style="height:24px;width:24px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;"> Sento Run</h1>
-        <p>{{ user_profile.full_name | default("Atleta") }} · {{ date_str }}</p>
+        <p>{{ session.display_name.split(' ')[0] if session.display_name else "Atleta" }} · {{ date_str }}</p>
       </div>
       <div style="text-align:right;">
         {% if last_refresh %}
@@ -230,8 +174,8 @@
   <!-- ADMIN: Race assignment selector -->
   {% if _admin_viewing and _all_races %}
   <div id="adminRaceCard" style="background:white;border-radius:14px;padding:14px 18px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-    <div style="font-size:12px;font-weight:800;color:#1a1a2e;white-space:nowrap;">🏁 Competencia vinculada</div>
-    <select id="raceSelect" style="flex:1;min-width:200px;font-size:13px;padding:7px 10px;border:1.5px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#1a1a2e;font-weight:600;cursor:pointer;">
+    <div style="font-size:12px;font-weight:800;color:#2B2D42;white-space:nowrap;">🏁 Competencia vinculada</div>
+    <select id="raceSelect" style="flex:1;min-width:200px;font-size:13px;padding:7px 10px;border:1.5px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#2B2D42;font-weight:600;cursor:pointer;">
       <option value="">— Sin vincular —</option>
       {% for r in _all_races %}
       <option value="{{ r.id }}" {% if r.id == _current_race_id %}selected{% endif %}>
@@ -239,7 +183,7 @@
       </option>
       {% endfor %}
     </select>
-    <button onclick="assignRace()" style="background:#0f3460;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Asignar</button>
+    <button onclick="assignRace()" style="background:#555767;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Asignar</button>
     <span id="raceAssignMsg" style="font-size:12px;color:#22c55e;display:none;font-weight:600;"></span>
   </div>
   <script>
@@ -269,7 +213,7 @@
   <!-- HERO CARD — objetivo de carrera -->
   {% set _wi = {'rest': '😴', 'easy': '🏃', 'tempo': '⚡', 'intervals': '🔥', 'long': '🌿', 'cross': '💪', 'race': '🏁', 'recovery': '💆'} %}
   <div style="border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.35);margin-bottom:24px;position:relative;
-    {% if race_image_url %}background-image:url('{{ race_image_url }}');background-size:cover;background-position:center;{% else %}background:linear-gradient(160deg,#1a1a2e 0%,#0f3460 100%);{% endif %}">
+    {% if race_image_url %}background-image:url('{{ race_image_url }}');background-size:cover;background-position:center;{% else %}background:linear-gradient(160deg,#2B2D42 0%,#555767 100%);{% endif %}">
     <!-- Dark overlay -->
     <div style="background:{% if race_image_url %}linear-gradient(160deg,rgba(10,10,30,0.82) 0%,rgba(15,52,96,0.75) 100%){% else %}transparent{% endif %};padding:0;">
 
@@ -395,7 +339,7 @@
             return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6;">
               <span style="font-size:22px;width:32px;text-align:center;flex-shrink:0;">${a.icon}</span>
               <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:700;color:#0f172a;">${a.name}</div>
+                <div style="font-size:13px;font-weight:700;color:#1E1F2E;">${a.name}</div>
                 <div style="font-size:12px;color:#6b7280;margin-top:2px;">${detail.join(' · ') || 'Sin datos de distancia'}</div>
               </div>
             </div>`;
@@ -411,7 +355,7 @@
           style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;align-items:center;justify-content:center;padding:16px;">
           <div style="background:#fff;border-radius:20px;padding:24px;max-width:400px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.25);max-height:80vh;overflow-y:auto;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <div style="font-size:16px;font-weight:800;color:#0f172a;" id="actsModalTitle"></div>
+              <div style="font-size:16px;font-weight:800;color:#1E1F2E;" id="actsModalTitle"></div>
               <button onclick="closeActsModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;line-height:1;padding:2px 6px;">✕</button>
             </div>
             <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;">Actividades del día</div>
@@ -493,9 +437,9 @@
         <div class="metric-sub">Score: {{ sleep_score }}</div>
       </div>
       {% endif %}
-      <div class="metric-card" style="border-top-color:#f97316;">
+      <div class="metric-card" style="border-top-color:#E63946;">
         <div class="metric-icon">🧠</div>
-        <div class="metric-value" style="color:#ea580c;">{{ stress_score }}<span class="metric-unit" style="font-size:11px;"> /100</span></div>
+        <div class="metric-value" style="color:#C3303B;">{{ stress_score }}<span class="metric-unit" style="font-size:11px;"> /100</span></div>
         <div class="metric-label">Estrés</div>
         <div class="metric-sub">0 = bajo · 100 = alto</div>
       </div>
@@ -506,8 +450,8 @@
   <!-- COACH IA CHAT -->
   {% if not sections_disabled.get('chat', False) %}
   <div class="section" id="aiChatSection">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #fed7aa;">
-      <div style="width:40px;height:40px;background:linear-gradient(135deg,#f97316,#ea580c);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏅</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #F3A5AB;">
+      <div style="width:40px;height:40px;background:linear-gradient(135deg,#E63946,#C3303B);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏅</div>
       <div>
         <div style="font-size:17px;font-weight:900;color:#9a3412;">Sento — Tu entrenador IA</div>
         <div style="font-size:12px;color:#c2410c;">{{ days_loaded }} días de datos cargados{% if earliest_date %} · desde {{ earliest_date }}{% endif %}</div>
@@ -532,14 +476,14 @@
   <div id="csvModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeCsvModal()">
     <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:480px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.3);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <div style="font-size:17px;font-weight:800;color:#0f172a;">📂 Cargar actividades</div>
+        <div style="font-size:17px;font-weight:800;color:#1E1F2E;">📂 Cargar actividades</div>
         <button onclick="closeCsvModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;line-height:1;padding:2px 6px;">✕</button>
       </div>
-      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13px;color:#9a3412;line-height:1.7;">
+      <div style="background:#FDF2F2;border:1px solid #F3A5AB;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13px;color:#9a3412;line-height:1.7;">
         <strong>Para exportar tu CSV desde Garmin Connect:</strong><br>
         {{ _('Abre') }} <strong>Garmin Connect</strong> → {{ _('ve a') }} <strong>{{ _('Actividades') }}</strong> → {{ _('selecciona el período') }} → {{ _('haz clic en') }} <strong>Exportar CSV</strong> {{ _('y sube el archivo aquí.') }}
       </div>
-      <label id="csv-modal-label" style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;padding:13px 20px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;display:block;text-align:center;transition:opacity 0.2s;">
+      <label id="csv-modal-label" style="background:linear-gradient(135deg,#E63946,#C3303B);color:#fff;padding:13px 20px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;display:block;text-align:center;transition:opacity 0.2s;">
         📂 Importar actividades desde CSV
         <input type="file" accept=".csv" style="display:none" onchange="uploadCSVModal(this)">
       </label>
@@ -550,7 +494,7 @@
   <!-- MODAL EDITAR OBJETIVO -->
   <div id="goalModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:460px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-      <h3 style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">✏️ Editar objetivo de entrenamiento</h3>
+      <h3 style="font-size:18px;font-weight:800;color:#2B2D42;margin-bottom:4px;">✏️ Editar objetivo de entrenamiento</h3>
       <p style="font-size:13px;color:#888;margin-bottom:18px;">Los cambios se guardan en tu perfil y actualizan la prescripción del día.</p>
       <div id="goalSaveWarning" style="display:none;background:#fff8e1;border-left:3px solid #f59e0b;border-radius:6px;padding:10px 12px;font-size:13px;color:#7c5200;margin-bottom:14px;">
         ⚠️ {{ _('Ya tienes un objetivo guardado. Al guardar,') }} <strong>{{ _('será sobreescrito') }}</strong>.
@@ -590,7 +534,7 @@
         </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:20px;">
-        <button onclick="saveGoal()" style="flex:1;background:linear-gradient(135deg,#1a1a2e,#0f3460);color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">💾 Guardar objetivo</button>
+        <button onclick="saveGoal()" style="flex:1;background:linear-gradient(135deg,#2B2D42,#555767);color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">💾 Guardar objetivo</button>
         <button onclick="closeGoalModal()" style="flex:1;background:#f4f6f9;color:#444;border:1px solid #e0e0e0;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;">{{ _("Cancelar") }}</button>
       </div>
       <div id="goalSaveStatus" style="display:none;margin-top:12px;font-size:13px;text-align:center;"></div>
@@ -641,7 +585,7 @@
         <button onclick="openWeeklySummaryModal()" style="display:inline-flex;align-items:center;gap:6px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#0369a1;cursor:pointer;">
           📊 Progreso semanal
         </button>
-        <button onclick="openCsvModal()" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#f97316,#ea580c);border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:white;cursor:pointer;">
+        <button onclick="openCsvModal()" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#E63946,#C3303B);border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:white;cursor:pointer;">
           📂 Cargar actividades
         </button>
       </div>
@@ -651,8 +595,8 @@
         <div style="font-size:30px;font-weight:900;color:#16a34a;letter-spacing:-1px;">{{ runs_count }}</div>
         <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">Carreras</div>
       </div>
-      <div style="background:#fff7ed;border-radius:12px;padding:14px 18px;flex:1;min-width:120px;border-top:3px solid #f97316;">
-        <div style="font-size:30px;font-weight:900;color:#ea580c;letter-spacing:-1px;">{{ strength_count }}</div>
+      <div style="background:#FDF2F2;border-radius:12px;padding:14px 18px;flex:1;min-width:120px;border-top:3px solid #E63946;">
+        <div style="font-size:30px;font-weight:900;color:#C3303B;letter-spacing:-1px;">{{ strength_count }}</div>
         <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">Fuerza</div>
       </div>
       <div style="background:#eff6ff;border-radius:12px;padding:14px 18px;flex:1;min-width:120px;border-top:3px solid #3b82f6;">
@@ -857,7 +801,7 @@ new Chart(document.getElementById('chartKm'), {
 new Chart(document.getElementById('chartLoad'), {
   type:'bar', data:{
     labels:chartMonths,
-    datasets:[{data:[2651,3761,3236,3478,3313,2591,813], backgroundColor:'#f9731680', borderColor:'#f97316', borderRadius:6}]
+    datasets:[{data:[2651,3761,3236,3478,3313,2591,813], backgroundColor:'#E6394680', borderColor:'#E63946', borderRadius:6}]
   }, options:baseOpts
 });
 
@@ -1094,14 +1038,14 @@ function setLang(lang) {
 
 {% if not _admin_viewing %}
 <!-- Toast: plan listo -->
-<div id="planToast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:white;border-radius:14px;padding:14px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.25);z-index:999;align-items:center;gap:14px;font-size:14px;max-width:90vw;">
+<div id="planToast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2B2D42;color:white;border-radius:14px;padding:14px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.25);z-index:999;align-items:center;gap:14px;font-size:14px;max-width:90vw;">
   <span>🎉 Tu plan de entrenamiento está listo</span>
   <a href="/plan" style="background:#22c55e;color:white;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;">{{ _('Ver plan →') }}</a>
   <button onclick="document.getElementById('planToast').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>
 </div>
 
 <!-- Toast: generando plan -->
-<div id="planGeneratingToast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f3460;color:white;border-radius:14px;padding:14px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.2);z-index:999;align-items:center;gap:12px;font-size:14px;max-width:90vw;">
+<div id="planGeneratingToast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#555767;color:white;border-radius:14px;padding:14px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.2);z-index:999;align-items:center;gap:12px;font-size:14px;max-width:90vw;">
   <span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.9s linear infinite;flex-shrink:0;"></span>
   <span>Sento está generando tu plan de entrenamiento… (2–3 min)</span>
 </div>
@@ -1113,7 +1057,7 @@ function setLang(lang) {
   .feedback-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:600; align-items:flex-end; justify-content:flex-end; padding:0 24px 84px; }
   .feedback-modal.open { display:flex; }
   .feedback-box { background:white; border-radius:16px; padding:20px; width:100%; max-width:360px; box-shadow:0 8px 40px rgba(0,0,0,0.2); }
-  .feedback-box h4 { font-size:15px; font-weight:800; color:#1a1a2e; margin-bottom:4px; }
+  .feedback-box h4 { font-size:15px; font-weight:800; color:#2B2D42; margin-bottom:4px; }
   .feedback-box p { font-size:12px; color:#888; margin-bottom:12px; }
   .feedback-box textarea { width:100%; border:1px solid #e0e0e0; border-radius:10px; padding:10px 12px; font-size:13px; font-family:inherit; resize:none; height:100px; outline:none; transition:border 0.2s; }
   .feedback-box textarea:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,0.1); }
@@ -1186,7 +1130,7 @@ async function sendFeedback() {
   <div style="background:white;border-radius:16px;width:100%;max-width:900px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #e5e7eb;background:#f8f9fa;">
       <div>
-        <div style="font-size:17px;font-weight:800;color:#1a1a2e;">📊 Mi Progreso Semanal</div>
+        <div style="font-size:17px;font-weight:800;color:#2B2D42;">📊 Mi Progreso Semanal</div>
         <div style="font-size:12px;color:#999;margin-top:2px;">Últimas semanas de entrenamiento</div>
       </div>
       <button onclick="closeWeeklySummaryModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1;">✕</button>
@@ -1207,7 +1151,7 @@ async function sendFeedback() {
   .ws-table .ws-cur { background:#f0f9ff; }
   .ws-chip { display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600; }
   .ws-green { background:#dcfce7;color:#166534; }
-  .ws-yellow { background:#fef9c3;color:#854d0e; }
+  .ws-yellow { background:#fef9c3;color:#7A1F27; }
   .ws-red { background:#fee2e2;color:#991b1b; }
   .ws-blue { background:#dbeafe;color:#1d4ed8; }
   .ws-gray { color:#d1d5db;font-size:11px; }
@@ -1269,7 +1213,7 @@ async function loadWeeklySummaries() {
     weeks.forEach((w, i) => {
       const km = w.total_km || 0;
       const barW = Math.max(Math.round((km / maxKm) * 56), 2);
-      html += `<td${colCls(i)}><div class="ws-bar-wrap"><div class="ws-bar" style="width:${barW}px"></div><span style="font-size:12px;font-weight:700;color:#1a1a2e;min-width:28px">${km}</span></div></td>`;
+      html += `<td${colCls(i)}><div class="ws-bar-wrap"><div class="ws-bar" style="width:${barW}px"></div><span style="font-size:12px;font-weight:700;color:#2B2D42;min-width:28px">${km}</span></div></td>`;
     });
     html += '</tr>';
 
