@@ -11,7 +11,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; color: #222; }
 
-  .navbar { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; gap: 8px; }
+  .navbar { background: linear-gradient(135deg, #1E1F2E 0%, #757684 100%); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; gap: 8px; }
   .navbar-brand { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   .navbar-links { display: flex; gap: 12px; align-items: center; }
   .navbar-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; transition: color 0.15s; }
@@ -30,7 +30,7 @@
 
   /* Plan header */
   .plan-header { background: white; border-radius: 16px; padding: 22px 26px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-  .plan-title { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
+  .plan-title { font-size: 22px; font-weight: 800; color: #1E1F2E; margin-bottom: 12px; }
   .plan-meta { display: flex; flex-wrap: wrap; gap: 10px; }
   .meta-chip { background: #f4f6f9; border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; color: #444; }
 
@@ -38,7 +38,7 @@
   .phases-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
   .phase-chip { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
   .phase-chip:nth-child(1) { background: #dbeafe; color: #1e40af; }
-  .phase-chip:nth-child(2) { background: #fed7aa; color: #9a3412; }
+  .phase-chip:nth-child(2) { background: #F3A5AB; color: #9a3412; }
   .phase-chip:nth-child(3) { background: #d1fae5; color: #065f46; }
   .phase-chip:nth-child(4) { background: #ede9fe; color: #5b21b6; }
   .phase-chip:nth-child(n+5) { background: #f3f4f6; color: #374151; }
@@ -52,13 +52,13 @@
   .week-header:hover { background: #f9fafb; }
   .week-left { display: flex; align-items: flex-start; gap: 8px; flex-direction: column; flex: 1; min-width: 0; }
   .week-number-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .week-number { font-size: 13px; font-weight: 800; color: #0f172a; white-space: nowrap; }
+  .week-number { font-size: 13px; font-weight: 800; color: #1E1F2E; white-space: nowrap; }
   .week-daterange { font-size: 11px; font-weight: 500; color: #6b7280; white-space: nowrap; }
   .week-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #dcfce7; color: #166534; white-space: nowrap; }
   .week-phase { font-size: 12px; color: #6b7280; }
   .week-focus { font-size: 11px; color: #9ca3af; font-style: italic; }
   .week-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .week-km { font-size: 13px; font-weight: 700; color: #0f172a; white-space: nowrap; }
+  .week-km { font-size: 13px; font-weight: 700; color: #1E1F2E; white-space: nowrap; }
   .week-toggle { font-size: 14px; color: #9ca3af; transition: transform 0.2s; }
   .week-card.open .week-toggle { transform: rotate(180deg); }
 
@@ -92,7 +92,7 @@
   .type-rest    .workout-label { color: #6b7280; }
   .type-easy    { background: #dbeafe; }
   .type-easy    .workout-label { color: #1d4ed8; }
-  .type-tempo   { background: #fed7aa; }
+  .type-tempo   { background: #F3A5AB; }
   .type-tempo   .workout-label { color: #c2410c; }
   .type-intervals { background: #fecaca; }
   .type-intervals .workout-label { color: #dc2626; }
@@ -101,7 +101,7 @@
   .type-cross   { background: #ede9fe; }
   .type-cross   .workout-label { color: #6d28d9; }
   .type-race    { background: #fef9c3; }
-  .type-race    .workout-label { color: #854d0e; }
+  .type-race    .workout-label { color: #7A1F27; }
   .type-bike    { background: #cffafe; }
   .type-bike    .workout-label { color: #0e7490; }
   .type-bike_indoor { background: #e0f2fe; }
@@ -120,7 +120,7 @@
   .btn-action:hover { opacity: 0.85; }
   .btn-regen { background: #f4f6f9; border: 1px solid #d1d5db; color: #374151; }
   .btn-regen:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn-dashboard { background: #0f172a; color: white; }
+  .btn-dashboard { background: #1E1F2E; color: white; }
 
   .disclaimer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-top: 20px; font-size: 12px; color: #64748b; line-height: 1.65; }
 
@@ -135,7 +135,7 @@
 
 <nav class="navbar">
   <div class="navbar-brand">
-    <span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span> Sento <span style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:6px;letter-spacing:0.5px;margin-left:2px;">RUN</span>
+    <span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span> Sento <span style="background:linear-gradient(135deg,#E63946,#C3303B);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:6px;letter-spacing:0.5px;margin-left:2px;">RUN</span>
     {% if _admin_viewing %}<span style="background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;">ADMIN: {{ _admin_user_email }}</span>{% endif %}
   </div>
   <div class="breadcrumb"><a href="{% if _admin_viewing %}/admin/{% else %}/{% endif %}">{% if _admin_viewing %}Admin{% else %}{{ _('Dashboard') }}{% endif %}</a> › {{ _('Plan de entrenamiento') }}</div>
@@ -164,9 +164,9 @@
 <!-- Generating state — polls until ready -->
 <div class="content" style="text-align:center;padding-top:80px;">
   <img src="/static/logo-icon.png" alt="Sento Run" style="height:72px;width:72px;object-fit:contain;border-radius:14px;margin-bottom:20px;display:block;margin-left:auto;margin-right:auto;">
-  <div style="font-size:20px;font-weight:800;color:#0f172a;margin-bottom:10px;">{{ _('Generando tu plan de entrenamiento') }}</div>
+  <div style="font-size:20px;font-weight:800;color:#1E1F2E;margin-bottom:10px;">{{ _('Generando tu plan de entrenamiento') }}</div>
   <div style="font-size:14px;color:#6b7280;margin-bottom:32px;">{{ _('Esto puede tomar unos segundos. No cierres esta página.') }}</div>
-  <div style="display:inline-block;width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:#0f172a;border-radius:50%;animation:spin 0.9s linear infinite;margin-bottom:24px;"></div>
+  <div style="display:inline-block;width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:#1E1F2E;border-radius:50%;animation:spin 0.9s linear infinite;margin-bottom:24px;"></div>
   <div id="genStatus" style="font-size:13px;color:#9ca3af;margin-top:8px;"></div>
 </div>
 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
@@ -232,7 +232,7 @@
     <div class="legend-item"><div class="legend-dot" style="background:#f3f4f6;border:1px solid #d1d5db"></div> {{ _('Descanso') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#dbeafe"></div> {{ _('Rodaje suave') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#d1fae5"></div> {{ _('Rodaje largo') }}</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fed7aa"></div> {{ _('Tempo') }}</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#F3A5AB"></div> {{ _('Tempo') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#fecaca"></div> {{ _('Intervalos') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#ede9fe"></div> {{ _('Cross / Fuerza') }}</div>
     <div class="legend-item"><div class="legend-dot" style="background:#cffafe"></div> {{ _('Ciclismo (ruta)') }}</div>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Objetivos anteriores — Sento Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; color: #222; }
+
+  .navbar { background: linear-gradient(135deg, #1E1F2E 0%, #757684 100%); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; gap: 8px; }
+  .navbar-brand { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .navbar-links { display: flex; gap: 12px; align-items: center; }
+  .breadcrumb { font-size: 12px; color: rgba(255,255,255,0.5); }
+  .breadcrumb a { color: rgba(255,255,255,0.65); text-decoration: none; }
+  @media (max-width: 600px) {
+    .breadcrumb { display: none; }
+    .navbar { padding: 10px 14px; }
+  }
+
+  .content { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
+  .page-title { font-size: 22px; font-weight: 800; color: #1E1F2E; margin-bottom: 4px; }
+  .page-subtitle { font-size: 13px; color: #6b7280; margin-bottom: 22px; }
+
+  .empty-state { background: white; border-radius: 16px; padding: 40px 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .empty-state .icon { font-size: 32px; margin-bottom: 10px; }
+  .empty-state .text { font-size: 14px; color: #6b7280; line-height: 1.6; margin-bottom: 18px; }
+
+  .goal-card { background: white; border-radius: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+  .goal-header { padding: 16px 18px; cursor: pointer; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; user-select: none; }
+  .goal-header:hover { background: #f9fafb; }
+  .goal-left { flex: 1; min-width: 0; }
+  .goal-name { font-size: 15px; font-weight: 800; color: #1E1F2E; margin-bottom: 4px; word-break: break-word; }
+  .goal-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; }
+  .chip { background: #f4f6f9; border-radius: 20px; padding: 3px 10px; font-weight: 600; color: #444; white-space: nowrap; }
+  .chip.reason-event_passed { background: #d1fae5; color: #065f46; }
+  .chip.reason-replaced { background: #fef3c7; color: #92400e; }
+  .goal-toggle { font-size: 14px; color: #9ca3af; transition: transform 0.2s; flex-shrink: 0; margin-top: 3px; }
+  .goal-card.open .goal-toggle { transform: rotate(180deg); }
+  .goal-body { display: none; padding: 0 18px 18px; }
+  .goal-card.open .goal-body { display: block; }
+  .goal-summary { font-size: 13px; color: #374151; line-height: 1.6; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .goal-detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 4px; }
+  @media (max-width: 480px) { .goal-detail-grid { grid-template-columns: 1fr; } }
+  .detail-item { font-size: 12px; color: #6b7280; }
+  .detail-item strong { color: #1E1F2E; }
+
+  .disclaimer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin-top: 20px; font-size: 12px; color: #64748b; line-height: 1.65; }
+</style>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">
+    <span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span> Sento <span style="background:linear-gradient(135deg,#E63946,#C3303B);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:6px;letter-spacing:0.5px;margin-left:2px;">RUN</span>
+  </div>
+  <div class="breadcrumb"><a href="/">{{ _('Dashboard') }}</a> › {{ _('Objetivos anteriores') }}</div>
+  <div class="navbar-links">
+    <a href="/" style="color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;">← {{ _('Dashboard') }}</a>
+    {% include '_user_menu.html' %}
+  </div>
+</nav>
+
+<div class="content">
+  <div class="page-title">{{ _('Objetivos anteriores') }}</div>
+  <div class="page-subtitle">{{ _('Aquí se guardan tus objetivos de entrenamiento pasados: los que ya se cumplieron o los que reemplazaste por uno nuevo.') }}</div>
+
+  {% if not history %}
+  <div class="empty-state">
+    <div class="icon">🗂️</div>
+    <div class="text">{{ _('Todavía no tienes objetivos archivados. Cuando termine tu evento o cambies de objetivo, aparecerá aquí.') }}</div>
+  </div>
+  {% else %}
+  {% for entry in history %}
+  {% set g = entry.training_goal or {} %}
+  {% set reason = entry.archive_reason or 'replaced' %}
+  <div class="goal-card" id="goal-{{ loop.index0 }}">
+    <div class="goal-header" onclick="document.getElementById('goal-{{ loop.index0 }}').classList.toggle('open')">
+      <div class="goal-left">
+        <div class="goal-name">{{ g.description or g.race_type or 'Objetivo' }}</div>
+        <div class="goal-meta">
+          {% if g.event_date %}<span class="chip">📅 {{ g.event_date }}</span>{% endif %}
+          <span class="chip reason-{{ reason }}">{% if reason == 'event_passed' %}✅ {{ _('evento cumplido') }}{% else %}🔄 {{ _('reemplazado') }}{% endif %}</span>
+          {% if entry.archived_at %}<span class="chip">{{ _('archivado') }} {{ entry.archived_at[:10] }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="goal-toggle">▼</div>
+    </div>
+    <div class="goal-body">
+      {% if entry.summary %}<div class="goal-summary">{{ entry.summary }}</div>{% endif %}
+      <div class="goal-detail-grid">
+        {% if g.sport %}<div class="detail-item"><strong>{{ _('Deporte') }}:</strong> {{ g.sport }}</div>{% endif %}
+        {% if g.target_pace_str %}<div class="detail-item"><strong>{{ _('Ritmo meta') }}:</strong> {{ g.target_pace_str }} /km</div>{% endif %}
+        {% if g.ftp %}<div class="detail-item"><strong>FTP:</strong> {{ g.ftp }} W</div>{% endif %}
+        {% if g.weekly_peak_km %}<div class="detail-item"><strong>{{ _('Pico semanal') }}:</strong> {{ g.weekly_peak_km }} km</div>{% endif %}
+        {% if entry.training_plan_schedule and entry.training_plan_schedule.total_weeks %}
+        <div class="detail-item"><strong>{{ _('Plan generado') }}:</strong> {{ entry.training_plan_schedule.total_weeks }} {{ _('semanas') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <div class="disclaimer-box">
+    ℹ️ {{ _('Sento usa un resumen breve de tus objetivos archivados de los últimos 90 días como contexto en el chat, para dar recomendaciones más informadas sobre tu progreso.') }}
+  </div>
+</div>
+
+</body>
+</html>

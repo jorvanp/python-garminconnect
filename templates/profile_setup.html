@@ -11,34 +11,34 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; color: #222; min-height: 100vh; }
 
-  .navbar { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar { background: linear-gradient(135deg, #1E1F2E 0%, #757684 100%); color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
   .navbar-brand { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
 
   .content { max-width: 560px; margin: 0 auto; padding: 32px 16px 64px; }
 
   .welcome { text-align: center; margin-bottom: 28px; }
-  .welcome h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+  .welcome h1 { font-size: 22px; font-weight: 800; color: #1E1F2E; margin-bottom: 6px; }
   .welcome p { font-size: 14px; color: #6b7280; line-height: 1.6; }
 
   /* Progress bar (dynamic) */
   .progress-bar { display: flex; gap: 6px; margin-bottom: 28px; }
   .progress-step { flex: 1; height: 5px; border-radius: 4px; background: #e5e7eb; transition: background 0.3s; }
   .progress-step.done { background: #22c55e; }
-  .progress-step.active { background: #f97316; }
+  .progress-step.active { background: #E63946; }
 
   /* Steps */
   .step { display: none; }
   .step.active { display: block; }
 
   .step-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); margin-bottom: 16px; }
-  .step-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .step-title { font-size: 16px; font-weight: 800; color: #1E1F2E; margin-bottom: 4px; }
   .step-sub { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
 
   /* Fields */
   .field { margin-bottom: 16px; }
   .field label { display: block; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
   .field input, .field select { width: 100%; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 10px 13px; font-size: 14px; font-family: inherit; outline: none; transition: border 0.2s; background: white; }
-  .field input:focus, .field select:focus { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.1); }
+  .field input:focus, .field select:focus { border-color: #E63946; box-shadow: 0 0 0 3px rgba(249,115,22,0.1); }
   .field .hint { font-size: 11px; color: #9ca3af; margin-top: 4px; }
 
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -47,30 +47,30 @@
   /* Sex selector */
   .sex-options { display: flex; gap: 8px; }
   .sex-btn { flex: 1; padding: 10px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; color: #374151; }
-  .sex-btn:hover { border-color: #f97316; color: #f97316; }
-  .sex-btn.selected { border-color: #f97316; background: #fff7ed; color: #ea580c; }
+  .sex-btn:hover { border-color: #E63946; color: #E63946; }
+  .sex-btn.selected { border-color: #E63946; background: #FDF2F2; color: #C3303B; }
 
   /* Discipline chips */
   .disc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   @media (max-width: 480px) { .disc-grid { grid-template-columns: 1fr; } }
   .disc-chip { display: flex; align-items: center; gap: 10px; padding: 13px 14px; border: 1.5px solid #e5e7eb; border-radius: 12px; background: white; cursor: pointer; transition: all 0.15s; user-select: none; }
-  .disc-chip:hover { border-color: #f97316; }
-  .disc-chip.selected { border-color: #f97316; background: #fff7ed; }
+  .disc-chip:hover { border-color: #E63946; }
+  .disc-chip.selected { border-color: #E63946; background: #FDF2F2; }
   .disc-chip .disc-emoji { font-size: 22px; line-height: 1; }
   .disc-chip .disc-name { font-size: 14px; font-weight: 700; color: #374151; }
   .disc-chip .disc-check { margin-left: auto; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 13px; color: white; transition: all 0.15s; }
-  .disc-chip.selected .disc-check { background: #f97316; border-color: #f97316; }
-  .disc-chip.selected .disc-name { color: #ea580c; }
+  .disc-chip.selected .disc-check { background: #E63946; border-color: #E63946; }
+  .disc-chip.selected .disc-name { color: #C3303B; }
 
   /* Sub-card for each activity block */
   .act-block { border: 1.5px solid #f1f5f9; border-radius: 12px; padding: 16px; margin-bottom: 14px; background: #fafbfc; }
-  .act-block-title { font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
+  .act-block-title { font-size: 13px; font-weight: 800; color: #1E1F2E; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
 
   /* Where-do-you-ride toggles */
   .toggle-row { display: flex; gap: 8px; }
   .toggle-btn { flex: 1; padding: 9px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; color: #374151; }
-  .toggle-btn:hover { border-color: #f97316; }
-  .toggle-btn.selected { border-color: #f97316; background: #fff7ed; color: #ea580c; }
+  .toggle-btn:hover { border-color: #E63946; }
+  .toggle-btn.selected { border-color: #E63946; background: #FDF2F2; color: #C3303B; }
 
   /* Optional badge */
   .optional { font-size: 10px; background: #f3f4f6; color: #9ca3af; border-radius: 6px; padding: 1px 6px; margin-left: 6px; font-weight: 500; text-transform: none; letter-spacing: 0; }
@@ -79,7 +79,7 @@
   .btn-row { display: flex; gap: 10px; margin-top: 20px; }
   .btn-back { flex: 1; padding: 12px; border: 1.5px solid #e5e7eb; border-radius: 12px; background: white; font-size: 14px; font-weight: 600; cursor: pointer; color: #6b7280; transition: all 0.2s; }
   .btn-back:hover { border-color: #d1d5db; color: #374151; }
-  .btn-next { flex: 2; padding: 12px; border: none; border-radius: 12px; background: linear-gradient(135deg, #f97316, #ea580c); color: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+  .btn-next { flex: 2; padding: 12px; border: none; border-radius: 12px; background: linear-gradient(135deg, #E63946, #C3303B); color: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
   .btn-next:hover { opacity: 0.88; }
   .btn-next:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-skip { display: block; text-align: center; font-size: 12px; color: #9ca3af; margin-top: 14px; cursor: pointer; text-decoration: underline; }
@@ -91,15 +91,15 @@
   /* Success */
   .success-screen { display: none; text-align: center; padding: 48px 20px; }
   .success-icon { font-size: 56px; margin-bottom: 16px; }
-  .success-screen h2 { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+  .success-screen h2 { font-size: 22px; font-weight: 800; color: #1E1F2E; margin-bottom: 8px; }
   .success-screen p { font-size: 14px; color: #6b7280; }
 
   /* Plan start options */
   .plan-start-opts { display: flex; flex-direction: column; gap: 8px; }
   .plan-start-opt { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
-  .plan-start-opt:hover { border-color: #f97316; }
-  .plan-start-opt.selected { border-color: #f97316; background: #fff7ed; }
-  .plan-start-opt input[type=radio] { accent-color: #f97316; width: 16px; height: 16px; flex-shrink: 0; }
+  .plan-start-opt:hover { border-color: #E63946; }
+  .plan-start-opt.selected { border-color: #E63946; background: #FDF2F2; }
+  .plan-start-opt input[type=radio] { accent-color: #E63946; width: 16px; height: 16px; flex-shrink: 0; }
   .plan-start-opt span { font-size: 13px; font-weight: 600; color: #374151; }
   #plan_start_date_wrap { display: none; margin-top: 10px; }
 </style>
@@ -110,7 +110,7 @@
 <body>
 
 <nav class="navbar">
-  <div class="navbar-brand"><span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span> Sento <span style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:6px;letter-spacing:0.5px;margin-left:2px;">RUN</span></div>
+  <div class="navbar-brand"><span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span> Sento <span style="background:linear-gradient(135deg,#E63946,#C3303B);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:6px;letter-spacing:0.5px;margin-left:2px;">RUN</span></div>
   {% include "_lang_toggle.html" %}
 </nav>
 
