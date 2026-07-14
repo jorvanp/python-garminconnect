@@ -213,6 +213,8 @@ plan_duration_weeks, plan_start_date
 - Tipos de workout: `rest`, `easy`, `tempo`, `intervals`, `long`, `cross`, `race`, `bike` (ruta), `bike_indoor` (rodillo), `mobility` (movilidad/estiramiento)
 - Los workouts soportan `km` (distancia) y/o `minutes` (sesiones por tiempo: rodillo, fuerza, movilidad)
 - La semana actual se detecta automáticamente con `plan_start_date` y la fecha de hoy
+- **`plan_start_date` nunca es anterior a hoy** y **`plan_duration_weeks` se limita a las semanas que caben antes del `event_date`** (guard en `save_goal` y en `generate_training_plan_schedule`). Evita el bug de "hoy = semana 16" cuando el plan se ancla al evento y el inicio cae en el pasado.
+- `generate_training_plan_schedule` usa `gemini-2.5-pro` con **hasta 3 reintentos** (a veces devuelve JSON mal formado); si los 3 fallan, devuelve `None`
 - El plan incluye disclaimer visible de que es una recomendación de IA
 
 **Flujo completo de configuración:**

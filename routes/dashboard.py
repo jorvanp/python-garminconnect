@@ -829,6 +829,37 @@ def save_goal():
     description = _re.sub(r'[\s.,;:·|\-]*objetivo\s*:.*$', '', description,
                           flags=_re.IGNORECASE).strip()
 
+    # --- Plan start date & duration sanity ---------------------------------
+    # A plan created today cannot start in the past. And its duration must fit
+    # between the start and the event, otherwise the "current week" ends up in
+    # the past (e.g. week 16 of a 28-week plan the day it was created).
+    from datetime import date as _date_cls
+    _today = today_tz(session.get('timezone'))
+    event_date_str = (data.get('event_date') or '').strip()[:10]
+
+    ps_raw = (data.get('plan_start_date') or '').strip()[:10]
+    try:
+        _ps = _date_cls.fromisoformat(ps_raw)
+        if _ps < _today:
+            _ps = _today
+    except ValueError:
+        _ps = _today
+    plan_start_date = _ps.isoformat()
+
+    try:
+        plan_weeks = int(data.get('plan_duration_weeks') or 0)
+    except (TypeError, ValueError):
+        plan_weeks = 0
+    # Cap duration so the plan ends on/around the event week, never before today.
+    try:
+        _ev = _date_cls.fromisoformat(event_date_str)
+        weeks_to_event = (_ev - _ps).days // 7 + 1
+        if weeks_to_event >= 1 and (plan_weeks <= 0 or plan_weeks > weeks_to_event):
+            plan_weeks = weeks_to_event
+    except ValueError:
+        pass
+    plan_duration_weeks = plan_weeks or None
+
     goal = {
         "sport": sport,
         "race_type": (data.get('race_type') or 'Carrera').strip()[:60],
@@ -843,15 +874,15 @@ def save_goal():
         "tempo_hr_max": int(data.get('tempo_hr_max') or 170),
         "interval_hr_min": int(data.get('interval_hr_min') or 170),
         "description": description[:200],
-        "event_date": (data.get('event_date') or '').strip()[:10],
+        "event_date": event_date_str,
         "injuries": (data.get('injuries') or '').strip()[:300],
         "availability_days": data.get('availability_days') or None,
         "availability_hours_week": data.get('availability_hours_week') or None,
         "strength_days": _clamp_int(data.get('strength_days'), 0, 7, 0),
         "mobility_days": _clamp_int(data.get('mobility_days'), 0, 7, 0),
         "schedule_preferences": (data.get('schedule_preferences') or 'sin preferencias específicas').strip()[:200],
-        "plan_duration_weeks": data.get('plan_duration_weeks') or None,
-        "plan_start_date": (data.get('plan_start_date') or '').strip()[:10],
+        "plan_duration_weeks": plan_duration_weeks,
+        "plan_start_date": plan_start_date,
     }
 
     firestore_helper.upsert_user(user_id, {'training_goal': goal})

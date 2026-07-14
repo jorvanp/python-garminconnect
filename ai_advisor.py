@@ -650,6 +650,8 @@ Notas sobre los campos:
 - "sport": usa "run" para carrera a pie, "bike" para ciclismo, "multi" para objetivos combinados.
 - Para ciclismo, "ftp" es la potencia umbral funcional en vatios (usa 0 o null si no la conoce) e "indoor_days" es cuántas sesiones semanales prefiere en rodillo/indoor.
 - "mobility_days": días semanales dedicados a movilidad/estiramientos (0 si no quiere sesiones aparte).
+- "plan_start_date": DEBE ser HOY ({today}) o una fecha futura — NUNCA una fecha pasada. El plan arranca cuando el atleta lo crea; no se puede entrenar en el pasado.
+- "plan_duration_weeks": el plan debe CABER entre "plan_start_date" y "event_date". Calcula las semanas disponibles = (event_date − plan_start_date) en semanas. NUNCA pongas una duración que obligue a empezar antes de hoy. Si el evento está tan próximo que no alcanza la duración óptima, usa las semanas disponibles (plan más corto) y ADVIERTE al atleta que el tiempo es ajustado; si de plano no alcanza ni el mínimo, sugiere mover el evento o elegir una prueba más corta. Jamás estires el plan hacia atrás en el tiempo.
 
 Solo incluye ese bloque cuando el atleta confirme o pida proceder. Puedes actualizar el bloque si ajusta algo después.
 Responde en español. Sé directo, motivador y profesional. Usa negritas y listas cuando ayude a la claridad.
@@ -889,7 +891,26 @@ def generate_training_plan_schedule(goal: dict, weekly_summaries: dict | None = 
         weekly_peak_km = goal.get('weekly_peak_km', 40)
         event_date = goal.get('event_date', '')
         plan_duration_weeks = int(goal.get('plan_duration_weeks') or 12)
-        plan_start_date = goal.get('plan_start_date') or today_tz(user_tz).isoformat()
+
+        # Defensive guard: a plan can never start in the past, and its duration
+        # must fit between the start and the event (otherwise "current week"
+        # lands in the past). save_goal already enforces this, but guard here too.
+        from datetime import date as _date_cls
+        _today_d = today_tz(user_tz)
+        try:
+            _psd = _date_cls.fromisoformat((goal.get('plan_start_date') or '')[:10])
+            if _psd < _today_d:
+                _psd = _today_d
+        except ValueError:
+            _psd = _today_d
+        try:
+            _evd = _date_cls.fromisoformat((event_date or '')[:10])
+            _weeks_to_event = (_evd - _psd).days // 7 + 1
+            if _weeks_to_event >= 1 and plan_duration_weeks > _weeks_to_event:
+                plan_duration_weeks = _weeks_to_event
+        except ValueError:
+            pass
+        plan_start_date = _psd.isoformat()
         injuries = goal.get('injuries') or 'ninguna'
         availability_days = goal.get('availability_days') or 4
         availability_hours = goal.get('availability_hours_week') or 5
@@ -1035,23 +1056,35 @@ Tipos válidos de workout: rest, easy, tempo, intervals, long, cross, race, bike
 - 'bike' = salida de ciclismo al aire libre · 'bike_indoor' = sesión en rodillo/smart trainer · 'mobility' = estiramiento/movilidad.
 - Usa "km" para sesiones con distancia y "minutes" para sesiones basadas en tiempo (rodillo, fuerza, movilidad). Puedes usar ambos cuando aplique. Deja en 0 lo que no corresponda."""
 
-        response = client.models.generate_content(
-            model='gemini-2.5-pro',
-            contents=prompt
-        )
-        text = response.text.strip()
+        # gemini-2.5-pro occasionally returns malformed/truncated JSON. Retry a
+        # few times before giving up so a single bad response doesn't fail the plan.
+        _MAX_ATTEMPTS = 3
+        last_err = None
+        for attempt in range(1, _MAX_ATTEMPTS + 1):
+            try:
+                response = client.models.generate_content(
+                    model='gemini-2.5-pro',
+                    contents=prompt
+                )
+                text = (response.text or '').strip()
 
-        # Strip any markdown code fences Gemini might add
-        text = _re.sub(r'^```(?:json)?\s*\n?', '', text, flags=_re.MULTILINE)
-        text = _re.sub(r'\n?```\s*$', '', text, flags=_re.MULTILINE)
-        text = text.strip()
+                # Strip any markdown code fences Gemini might add
+                text = _re.sub(r'^```(?:json)?\s*\n?', '', text, flags=_re.MULTILINE)
+                text = _re.sub(r'\n?```\s*$', '', text, flags=_re.MULTILINE)
+                text = text.strip()
 
-        plan = _json.loads(text)
-        if not isinstance(plan.get('weeks'), list) or len(plan['weeks']) == 0:
-            raise ValueError("Plan JSON missing valid 'weeks' array")
+                plan = _json.loads(text)
+                if not isinstance(plan.get('weeks'), list) or len(plan['weeks']) == 0:
+                    raise ValueError("Plan JSON missing valid 'weeks' array")
 
-        logger.info(f"Training plan generated: {plan.get('total_weeks')} weeks for {race_type}")
-        return plan
+                logger.info(f"Training plan generated: {plan.get('total_weeks')} weeks for {race_type} (intento {attempt})")
+                return plan
+            except Exception as e:
+                last_err = e
+                logger.warning(f"Plan generation attempt {attempt}/{_MAX_ATTEMPTS} failed: {e}")
+
+        logger.error(f"Error generating training plan schedule tras {_MAX_ATTEMPTS} intentos: {last_err}")
+        return None
 
     except Exception as e:
         logger.error(f"Error generating training plan schedule: {e}")
