@@ -52,6 +52,10 @@ templates/
   training_plan.html        # Plan de entrenamiento semana a semana
   goal_setup.html           # Chat con Sento para definir objetivo + generar plan
   admin_dashboard.html      # Panel admin
+  _user_menu.html           # Partial: dropdown de usuario (Mi perfil / Objetivos anteriores / Salir).
+                            # Incluido con {% include %} en toda página de usuario logueado —
+                            # nunca copiar/pegar el menú, siempre incluir este partial
+  _admin_menu.html          # Partial: links del navbar de admin. Incluido en toda página /admin/*
 deploy.sh                   # Deploy completo a Cloud Run (incluye scheduler y secrets)
 ```
 
@@ -306,6 +310,7 @@ Nunca commitear con pruebas en rojo, ni desplegar antes de commitear, ni despleg
 - **No calcular weekly_summaries después del llamado a generate_daily_recommendation** — deben calcularse antes para pasarlos como contexto
 - **Siempre correr tests antes de deployar** — `.venv/bin/python -m pytest tests/test_helpers.py -v`
 - **Diseño responsivo obligatorio** — todos los cambios de UI deben funcionar en móvil (≤640px). Usar `@media (max-width: 640px)` y `@media (max-width: 700px)`. Revisar especialmente grids, tablas y tarjetas que en móvil deben colapsar a columna única o usar scroll horizontal controlado. Nunca dejar elementos que crezcan sin límite de ancho en flex layouts móviles (`flex: 0 0 <fixed>px` en vez de dejar grow implícito).
+- **No copiar/pegar el menú de usuario o el navbar de admin en una plantilla nueva** — usar `{% include '_user_menu.html' %}` (páginas de usuario) o `{% include '_admin_menu.html' %}` (páginas `/admin/*`). Copiar el markup a mano fue la causa de que el dropdown apareciera incompleto o distinto según la página.
 
 ---
 

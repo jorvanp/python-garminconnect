@@ -63,7 +63,9 @@ nav { background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); color: white;
     <span style="background:white;border-radius:8px;padding:2px;display:inline-flex;"><img src="/static/logo-icon.png" alt="Sento" style="height:26px;width:26px;object-fit:contain;border-radius:6px;display:block;"></span>
     Sento <span style="background:#f97316;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:0.5px;">RUN</span>
   </a>
-  <a href="/auth/logout" style="color:rgba(255,255,255,0.55);text-decoration:none;font-size:12px;font-weight:600;">Salir</a>
+  <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+    {% include '_user_menu.html' %}
+  </div>
 </nav>
 
 <div class="page">

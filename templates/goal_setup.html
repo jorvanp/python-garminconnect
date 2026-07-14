@@ -110,10 +110,8 @@
     <div class="breadcrumb"><a href="/">{{ _('Dashboard') }}</a> › Configurar objetivo</div>
   </div>
   <div class="navbar-links" style="display:flex;align-items:center;gap:14px;font-size:13px;">
-    {% if session.picture_url %}<img src="{{ session.picture_url }}" style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);" alt="">{% endif %}
-    <span style="color:rgba(255,255,255,0.9);">{{ session.display_name or session.email or '' }}</span>
     {% include '_lang_toggle.html' %}
-    <a href="/auth/logout" style="color:rgba(255,255,255,0.7);text-decoration:none;">{{ _("Salir") }}</a>
+    {% include '_user_menu.html' %}
   </div>
 </nav>
 
